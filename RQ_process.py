@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import sys
-sys.path.append('/scratch/cwfink/analysis/scdmsPyTools/build/lib/scdmsPyTools/BatTools')
+sys.path.append('/scratch/cwfink/repositories/scdmsPyTools/build/lib/scdmsPyTools/BatTools')
 from scdmsPyTools.BatTools.IO import *
 import multiprocessing
 from itertools import repeat
