@@ -125,7 +125,7 @@ def process_RQ(file, params):
     for item in columns:
         temp_data[item] = []
     dump = file.split('/')[-1].split('_')[-1].split('.')[0]
-    seriesnum = file..split('/')[-2]
+    seriesnum = file.split('/')[-2]
     print(f"On Series: {seriesnum},  dump: {dump}")
     
 
