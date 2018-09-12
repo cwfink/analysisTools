@@ -13,7 +13,7 @@ from scipy.optimize import leastsq, curve_fit
 from scipy import stats
 
 import seaborn as sns
-sns.set_context('talk')
+#sns.set_context('talk')
 from scipy import constants
 
 
@@ -900,4 +900,45 @@ def integral_Energy_caleb(trace_power, time):
     return  np.trapz(baseline_p0 - trace_power, x = time)/constants.e
     
     
-    
+def setplot_style():
+    sns.reset_defaults()
+    sns.set_context('notebook')
+    sns.set_style( {'axes.axisbelow': True,
+                    'axes.edgecolor': '.15',
+                    'axes.facecolor': 'white',
+                    'axes.grid': True,
+                    'axes.grid.axis' : 'both',
+                    'axes.grid.which' : 'both',
+                    'grid.linestyle' : '--',
+                    'axes.labelcolor': '.15',
+                    'axes.spines.bottom': True,
+                    'axes.spines.left': True,
+                    'axes.spines.right': True,
+                    'axes.spines.top': True,
+                    'figure.facecolor': 'w',
+                    'legend.frameon': True,
+                    'legend.shadow' : False,
+                    'legend.borderpad' : 0.5,
+                    'legend.fancybox' : False,
+                    'legend.framealpha' : 1,
+                    'legend.edgecolor' : '.6',
+                    'font.family': ['sans-serif'],
+                    'font.sans-serif': ['Arial',
+                                        'DejaVu Sans',
+                                        'Liberation Sans',
+                                        'Bitstream Vera Sans',
+                                        'sans-serif'],
+                    'grid.color': '.8',
+                    'image.cmap': 'viridis',
+                    'lines.solid_capstyle': 'round',
+                    'patch.edgecolor': '.15',
+                    'patch.force_edgecolor': True,
+                    'text.color': '.15',
+                    'xtick.bottom': True,
+                    'xtick.color': '.15',
+                    'xtick.direction': 'in',
+                    'xtick.top': True,
+                    'ytick.color': '.15',
+                    'ytick.direction': 'in',
+                    'ytick.left': True,
+                    'ytick.right': True});
