@@ -13,7 +13,7 @@ from scipy.optimize import leastsq, curve_fit
 from scipy import stats
 
 import seaborn as sns
-#sns.set_context('talk')
+
 from scipy import constants
 
 
