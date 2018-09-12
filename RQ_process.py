@@ -415,6 +415,150 @@ def hist_cut(df, var, nbins = None, xlims = None, cutold = None,cutnew = None, l
     plt.legend()
     return plt
 
+def plotRQ(xvals, yvals, xlims = None, ylims = None, cutold = None, cutnew = None, 
+           lgcrawdata = True, lgceff=True, labeldict = None, ms = 1, a = .3):
+    """
+    Function to plot RQ data as a scatter plot.
+    
+    Parameters
+    ----------
+    xvals: array
+        Array of x values to be plotted
+    yvals: array
+        Array of y values to be plotted
+    xlims: list of floats, optional
+        This is passed to the plot as the x limits
+    ylims: list of floats, optional
+        This is passed to the plot as the y limits
+    cutold: array of booleans, optional
+        mask of values to be plotted
+    cutnew: array of booleans, optional
+        mask of values to be plotted. This mask is added to cutold if cutold is not None. 
+    lgcrawdata: boolean, optional
+        if True, the raw data is plotted
+    lgceff: boolean, optional
+        if True, the cuff efficiencies are printed in the legend. The total eff will be the sum of all the 
+        cuts divided by the length of the data. the current cut eff will be the sum of the current cut 
+        divided by the sum of all the previous cuts, if any
+    labeldict: dictionary, optional
+        dictionary to overwrite the labels of the plot. defaults are : 
+            labels = {'title' : 'Histogram', 'xlabel' : 'variable', 'ylabel' : 'Count', 'cutnew' : 'current' 
+            , 'cutold' : 'previous'}
+        Ex: to change just the title, pass: labeldict = {'title' : 'new title'}, to histRQ()
+    ms: float, optional
+        The size of each marker in the scatter plot. Default is 1
+    a: float, optional
+        The opacity of the markers in the scatter plot, i.e. alpha. Default is 0.3
+    
+    Returns
+    -------
+        fig: Object
+            Matplotlib figure object
+        ax: Object
+            Matplotlib axes object
+        
+    """
+
+    labels = {'title' : 'Plot of x vs. y', 'xlabel' : 'x', 'ylabel' : 'y', 'cutnew' : 'current', 'cutold' : 'previous'}
+    if labeldict is not None:
+        for key in labeldict:
+            labels[key] = labeldict[key]
+    
+    fig, ax = plt.subplots(figsize = (9,6))
+    
+    ax.set_title(labels['title'])
+    ax.set_xlabel(labels['xlabel'])
+    ax.set_ylabel(labels['ylabel'])
+
+    
+    if xlims is not None:
+        xlimitcut = (xvals>xlims[0]) & (xvals<xlims[1])
+    else:
+        xlimitcut = np.ones(len(xvals), dtype=bool)
+    if ylims is not None:
+        ylimitcut = (yvals>ylims[0]) & (yvals<ylims[1])
+    else:
+        ylimitcut = np.ones(len(yvals), dtype=bool)
+
+    limitcut = xlimitcut & ylimitcut
+    
+    if lgcrawdata:
+        ax.scatter(xvals[limitcut], yvals[limitcut], label = 'Full Data', c = 'b', s = ms, alpha = a)
+        
+    if cutold is not None:
+        oldsum = cutold.sum()
+        if cutnew is None:
+            cuteff = cutold.sum()/cutold.shape[0]
+            cutefftot = cuteff
+            
+        label = f"Data passing {labels['cutold']} cut"
+        if cutnew is None:
+            ax.scatter(xvals[cutold & limitcut], yvals[cutold & limitcut], 
+                       label=label, c='r', s=ms, alpha=a)
+        else: 
+            ax.scatter(xvals[cutold & limitcut & ~cutnew], yvals[cutold & limitcut & ~cutnew], 
+                       label=label, c='r', s=ms, alpha=a)
+        
+    if cutnew is not None:
+        newsum = cutnew.sum()
+        if cutold is not None:
+            cutnew = cutnew & cutold
+            cuteff = cutnew.sum()/oldsum
+            cutefftot = cutnew.sum()/cutnew.shape[0]
+        else:
+            cuteff = newsum/cutnew.shape[0]
+            cutefftot = cuteff
+            
+        if lgceff:
+            label = f"Data passing {labels['cutnew']} cut, eff : {cuteff:.3f}"
+        else:
+            label = f"Data passing {labels['cutnew']} cut"
+            
+        ax.scatter(xvals[cutnew & limitcut], yvals[cutnew & limitcut], 
+                   label=label, c='g', s=ms, alpha=a)
+    
+    elif (cutnew is None) & (cutold is None):
+        cuteff = 1
+        cutefftot = 1
+        
+    if xlims is None:
+        if lgcrawdata:
+            xrange = xvals.max()-xvals.min()
+            ax.set_xlim([xvals.min()-0.05*xrange, xvals.max()+0.05*xrange])
+        elif cutold is not None:
+            xrange = xvals[cutold].max()-xvals[cutold].min()
+            ax.set_xlim([xvals[cutold].min()-0.05*xrange, xvals[cutold].max()+0.05*xrange])
+        elif cutnew is not None:
+            xrange = xvals[cutnew].max()-xvals[cutnew].min()
+            ax.set_xlim([xvals[cutnew].min()-0.05*xrange, xvals[cutnew].max()+0.05*xrange])
+    else:
+        ax.set_xlim(xlims)
+        
+    if ylims is None:
+        if lgcrawdata:
+            yrange = yvals.max()-yvals.min()
+            ax.set_ylim([yvals.min()-0.05*yrange, yvals.max()+0.05*yrange])
+        elif cutold is not None:
+            yrange = yvals[cutold].max()-yvals[cutold].min()
+            ax.set_ylim([yvals[cutold].min()-0.05*yrange, yvals[cutold].max()+0.05*yrange])
+        elif cutnew is not None:
+            yrange = yvals[cutnew].max()-yvals[cutnew].min()
+            ax.set_ylim([yvals[cutnew].min()-0.05*yrange, yvals[cutnew].max()+0.05*yrange])
+        
+    else:
+        ax.set_ylim(ylims)
+        
+    ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    ax.grid(True)
+    
+    if lgceff:
+        ax.plot([],[], linestyle = ' ', label = f'Efficiency of total cut: {cutefftot:.3f}')
+        
+    ax.legend(markerscale = 6, framealpha = .9)
+    
+    return fig, ax
+
         
 def plot_cut(df, var ,xlims = None, ylims = None, cutold = None, cutnew = None, lgcrawdata = True
              , ms = 1, a = .3):
