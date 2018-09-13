@@ -52,7 +52,7 @@ def calcbaselinecut(arr, r0, i0, rload, dr = 0.1e-3, cut = None):
 
 
 
-def save_cut(cutarr, name, path = ''):
+def savecut(cutarr, name):
     """
     Function to save cut arrays. The function first checks the current_cut/ directory
     to see if the desired cut exists. If not, the cut is saved. If the current cut does
@@ -69,32 +69,33 @@ def save_cut(cutarr, name, path = ''):
             Array of bools
         name: str
             The name of cut to be saved
-        path: str, optional
-            The path to the directory where cuts are to be saved
             
     Returns
     -------
         None
     
     """
+    path = os.path.dirname(os.path.abspath(__file__))
     
     # check if 'current_cuts/' and 'archived_cuts/' exist. If not, make them
     if not os.path.isdir(f'{path}/current_cuts'):
+        print('folder: current_cuts/ does not exist, it is being created now')
         os.makedirs(f'{path}/current_cuts')
     if not os.path.isdir(f'{path}/archived_cuts'):
+        print('folder: archived_cuts/ does not exist, it is being created now')
         os.makedirs(f'{path}/archived_cuts')
     
     # check if there is a current cut, then check if it has been changed
     try:
-        ctemp = np.open(f'{path}/current_cuts/{name}.npy')
+        ctemp = np.load(f'{path}/current_cuts/{name}.npy')
         
-        if ctemp == cutarr:
+        if np.array_equal(ctemp, cutarr):
             print(f'cut: {name} is already up to date.')
         else:
             print(f'updating cut: {name} in directory: {path}/current_cuts/ and achiving old version')
             np.save(f'{path}/current_cuts/{name}.npy', cutarr)
             
-            files_old = glob(f'{path}/archived_cuts/{name}_v'+'*')
+            files_old = glob(f'{path}/archived_cuts/{name}_v*')
             if len(files_old) > 0:
                 latestversion = sorted(files_old)[-1].split('_v')[-1].split('.')[0]
                 version = int(latestversion +1)
