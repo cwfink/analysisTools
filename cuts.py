@@ -1,5 +1,6 @@
 import numpy as np
 from tescal.utils import removeoutliers
+from glob import glob
 
 
 
@@ -50,6 +51,50 @@ def calcbaselinecut(arr, r0, i0, rload, dr = 0.1e-3, cut = None):
 
 
 
+def save_cut(cutarr, name):
+    """
+    Function to save cut arrays. The function first checks the current_cut/ directory
+    to see if the desired cut exists. If not, the cut is saved. If the current cut does
+    exist, the fuction checkes if the cut has changed. If it has, the old version is archived
+    and the new version of the cut is saved. If nothing in the cut has changed, nothing is done
+    
+    Parameters
+    ----------
+        cutarr: ndarray
+            Array of bools
+        name: str
+            The name of cut to be saved
+            
+    Returns
+    -------
+        None
+    
+    """"
+    
+    try:
+        ctemp = np.open(f'current_cuts/{name}.npy')
+        
+        if ctemp == cutarr:
+            print(f'cut: {name} is already up to date.')
+        else:
+            print(f'updating cut: {name} in directory: current_cuts/ and achiving old version')
+            np.save(f'current_cuts/{name}.npy', cutarr)
+            
+            files_old = glob(f'archive_cuts/{name}_v'+'*')
+            if len(files_old) > 0:
+                latestversion = sorted(files_old)[-1].split('_v')[-1].split('.')[0]
+                version = int(latestversion +1)
+            else:
+                version = 0
+            np.save(f'archive_cuts/{name}_v{version}.npy', ctemp)
+            print(f'old cut is saved as: archive_cuts/{name}_v{version}.npy')
+        
+    except FileNotFoundError:
+        print(f'No existing version of cut: {name}. \n Saving cut: {name}, to directory: current_cuts/')
+        np.save(f'current_cuts/{name}.npy', cutarr)
+        
+    
+    
                           
                           
     
