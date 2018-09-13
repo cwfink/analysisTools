@@ -1,5 +1,5 @@
 import numpy as np
-from tescal.utils import removeoutliers
+from qetpy.utils import removeoutliers
 from glob import glob
 import os
 
@@ -97,7 +97,7 @@ def savecut(cutarr, name):
             
             files_old = glob(f'{path}/archived_cuts/{name}_v*')
             if len(files_old) > 0:
-                latestversion = sorted(files_old)[-1].split('_v')[-1].split('.')[0]
+                latestversion = int(sorted(files_old)[-1].split('_v')[-1].split('.')[0])
                 version = int(latestversion +1)
             else:
                 version = 0
@@ -108,8 +108,42 @@ def savecut(cutarr, name):
         print(f'No existing version of cut: {name}. \n Saving cut: {name}, to directory: current_cuts/')
         np.save(f'{path}/current_cuts/{name}.npy', cutarr)
         
+    return
+
+ 
+
+
+def listcuts():
+    """
+    Function to return all the available cuts saved in current_cuts/
     
+    Parameters
+    ----------
+        None
+        
+    Returns
+    -------
+        allcuts: list
+            List of names of all current cuts available
+    """
+    allcuts = []
+    path = os.path.dirname(os.path.abspath(__file__))
     
+    if not os.path.isdir(f'{path}/current_cuts'):
+        print('No cuts have been generated yet')
+        return
+    
+    files = glob(f'{path}/current_cuts/*')
+    
+    if len(files) == 0:
+        print('No cuts have been generated yet')
+        return
+    else:
+        for file in files:
+            allcuts.append(file.split('/')[-1].split('.')[0])
+        return allcuts
+        
+
                           
                           
     
