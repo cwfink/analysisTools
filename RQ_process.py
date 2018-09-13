@@ -5,8 +5,8 @@ sys.path.append('/scratch/cwfink/repositories/scdmsPyTools/build/lib/scdmsPyTool
 from scdmsPyTools.BatTools.IO import *
 import multiprocessing
 from itertools import repeat
-from pycdms.fitting import ofamp, OFnonlin, MuonTailFit, chi2lowfreq
-from pycdms.utils import calc_psd, calc_offset, lowpassfilter
+from tescal.fitting import ofamp, OFnonlin, MuonTailFit, chi2lowfreq
+from tescal.utils import calc_psd, calc_offset, lowpassfilter
 import matplotlib.pyplot as plt
 
 from scipy.optimize import leastsq, curve_fit
