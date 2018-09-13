@@ -8,4 +8,4 @@ repo.git.commit(m = "trying to test GitPython")
 #print(repo.git.status())
 
 #repo.git.pull('origin', new_branch)
-repo.git.push('origin', new_branch)
+repo.git.push('origin', 'master')
