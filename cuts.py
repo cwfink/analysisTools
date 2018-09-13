@@ -76,7 +76,7 @@ def save_cut(cutarr, name, path = ''):
     -------
         None
     
-    """"
+    """
     
     # check if 'current_cuts/' and 'archived_cuts/' exist. If not, make them
     if not os.path.isdir(f'{path}/current_cuts'):
