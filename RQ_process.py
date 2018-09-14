@@ -155,7 +155,7 @@ def process_RQ(file, params):
         amp_td_nocon, t0_td_nocon, chi2_td_nocon = ofamp(trace,template, psd,fs, lgcsigma = False, nconstrain = 10000)
         amp, _, chi2 = ofamp(trace,template, psd,fs, withdelay=False, lgcsigma = False)
         
-        chi2_timedomain = chi2_td(trace, template, amp_td, t0_td, fs, baseline=np.mean(trace[:16000]))
+        chi2_timedomain = td_chi2(trace, template, amp_td, t0_td, fs, baseline=np.mean(trace[:16000]))
         
         #nonlinof = OFnonlin(psd = psd, fs = fs, template=template)
         #fitparams,errors_nonlin,_,chi2nonlin = nonlinof.fit_falltimes(trace_bsSub, lgcdouble = True,
@@ -1048,7 +1048,7 @@ def integral_Energy_caleb(trace_power, time):
     baseline_p0 = np.mean(np.hstack((trace_power[:16000],trace_power[20000:])))
     return  np.trapz(baseline_p0 - trace_power, x = time)/constants.e
 
-def chi2_td(signal, template, amp, tshift, fs, baseline=0):
+def td_chi2(signal, template, amp, tshift, fs, baseline=0):
     
     signal_bssub= signal - baseline
     tmplt = amp*np.roll(template, int(tshift*fs))
