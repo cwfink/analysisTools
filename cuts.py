@@ -203,7 +203,7 @@ def loadcut(name, lgccurrent = True):
     
     
     try:
-        cut = np.load(f'{path}/{cutdir}/{name}')['cut']
+        cut = np.load(f'{path}/{cutdir}/{name}.npz')['cut']
         return cut
     except FileNotFoundError:
         raise FileNotFoundError(f'{name} not found in {path}/{cutdir}/')
@@ -246,7 +246,7 @@ def loadcutdescription(name, lgccurrent = True):
     
     
     try:
-        cutmessage = np.load(f'{path}/{cutdir}/{name}')['description']
+        cutmessage = np.load(f'{path}/{cutdir}/{name}.npz')['cutdescription']
         return cutmessage
     except FileNotFoundError:
         raise FileNotFoundError(f'{name} not found in {path}/{cutdir}/')    
