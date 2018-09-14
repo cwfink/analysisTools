@@ -52,12 +52,15 @@ def calcbaselinecut(arr, r0, i0, rload, dr = 0.1e-3, cut = None):
 
 
 
-def savecut(cutarr, name):
+def savecut(cutarr, name, description):
     """
     Function to save cut arrays. The function first checks the current_cut/ directory
     to see if the desired cut exists. If not, the cut is saved. If the current cut does
     exist, the fuction checkes if the cut has changed. If it has, the old version is archived
     and the new version of the cut is saved. If nothing in the cut has changed, nothing is done.
+    
+    Cut arrays are saved as .npz files, with keys: 'cut' -> the cut array, and 
+    'cutdescription' -> a short message about how the cut was calculated.
     
     Note, the function expects current cuts to be in directory: current_cuts/, and archived cuts
     to be in directory: archived_cuts/. If these folders do not exist in the given path, they will
@@ -69,6 +72,8 @@ def savecut(cutarr, name):
             Array of bools
         name: str
             The name of cut to be saved
+        description: str
+            Very short description of how the cut was calculated
             
     Returns
     -------
@@ -87,13 +92,13 @@ def savecut(cutarr, name):
     
     # check if there is a current cut, then check if it has been changed
     try:
-        ctemp = np.load(f'{path}/current_cuts/{name}.npy')
+        ctemp = np.load(f'{path}/current_cuts/{name}.npz')['cut']
         
         if np.array_equal(ctemp, cutarr):
             print(f'cut: {name} is already up to date.')
         else:
             print(f'updating cut: {name} in directory: {path}/current_cuts/ and achiving old version')
-            np.save(f'{path}/current_cuts/{name}.npy', cutarr)
+            np.savez_compressed(f'{path}/current_cuts/{name}', cut = cutarr, cutdescription=description)
             
             files_old = glob(f'{path}/archived_cuts/{name}_v*')
             if len(files_old) > 0:
@@ -101,12 +106,12 @@ def savecut(cutarr, name):
                 version = int(latestversion +1)
             else:
                 version = 0
-            np.save(f'{path}/archived_cuts/{name}_v{version}.npy', ctemp)
-            print(f'old cut is saved as: {path}/archived_cuts/{name}_v{version}.npy')
+            np.savez_compressed(f'{path}/archived_cuts/{name}_v{version}', cut = ctemp, cutdescription=description)
+            print(f'old cut is saved as: {path}/archived_cuts/{name}_v{version}.npz')
         
     except FileNotFoundError:
         print(f'No existing version of cut: {name}. \n Saving cut: {name}, to directory: current_cuts/')
-        np.save(f'{path}/current_cuts/{name}.npy', cutarr)
+        np.savez_compressed(f'{path}/current_cuts/{name}', cut = cutarr, cutdescription=description)
         
     return
 
@@ -198,7 +203,7 @@ def loadcut(name, lgccurrent = True):
     
     
     try:
-        cut = np.load(f'{path}/{cutdir}/{name}.npy')
+        cut = np.load(f'{path}/{cutdir}/{name}')['cut']
         return cut
     except FileNotFoundError:
         raise FileNotFoundError(f'{name} not found in {path}/{cutdir}/')
@@ -206,7 +211,45 @@ def loadcut(name, lgccurrent = True):
         
     
         
-        
+def loadcutdescription(name, lgccurrent = True):
+    """
+    Function to load the description of a cut. The name should just be the 
+    base name of the cut, with no file extension. If an archived cut is desired, the 
+    version of the cut must be part of the name, i.e. 'cbase_v3'
+    
+    Parameters
+    ----------
+        name: str
+            The name of the cut to be loaded
+        lgccurrent: bool, optional
+            If True, the current cut with corresponding name is loaded,
+            if False, the archived cut is loaded
+    
+    Returns
+    -------
+        cutmessage: str
+            the description of the cut stored with the array
+    
+    Raises
+    ------
+        FileNotFoundError
+            If the user specified cut cannot be loaded
+            
+    """
+    path = os.path.dirname(os.path.abspath(__file__))
+    
+    
+    if lgccurrent:
+        cutdir = 'current_cuts'
+    else:
+        cutdir = 'archived_cuts'
+    
+    
+    try:
+        cutmessage = np.load(f'{path}/{cutdir}/{name}')['description']
+        return cutmessage
+    except FileNotFoundError:
+        raise FileNotFoundError(f'{name} not found in {path}/{cutdir}/')    
             
         
         
