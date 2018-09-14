@@ -5,8 +5,8 @@ sys.path.append('/scratch/cwfink/repositories/scdmsPyTools/build/lib/scdmsPyTool
 from scdmsPyTools.BatTools.IO import *
 import multiprocessing
 from itertools import repeat
-from tescal.fitting import ofamp, OFnonlin, MuonTailFit, chi2lowfreq
-from tescal.utils import calc_psd, calc_offset, lowpassfilter
+from qetpy.fitting import ofamp, OFnonlin, MuonTailFit, chi2lowfreq
+from qetpy.utils import calc_psd, calc_offset, lowpassfilter
 import matplotlib.pyplot as plt
 
 from scipy.optimize import leastsq, curve_fit
@@ -15,6 +15,7 @@ from scipy import stats
 import seaborn as sns
 
 from scipy import constants
+
 
 
 
@@ -112,7 +113,7 @@ def process_RQ(file, params):
     columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
                'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1', 
               'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
-              'seriesNumber']
+              'seriesNumber', 'chi2_timedomain']
     
               #,'A_nonlin' , 'taurise', 'taufall', 't0nonlin', 'chi2nonlin','A_nonlin_err' , 'taurise_err', 'taufall_err', 
               # 't0nonlin_err', 'Amuon' , 'taumuon', 'Amuon_err' , 'taumuon_err']
@@ -154,6 +155,8 @@ def process_RQ(file, params):
         amp_td_nocon, t0_td_nocon, chi2_td_nocon = ofamp(trace,template, psd,fs, lgcsigma = False, nconstrain = 10000)
         amp, _, chi2 = ofamp(trace,template, psd,fs, withdelay=False, lgcsigma = False)
         
+        chi2_timedomain = chi2_td(trace, template, amp_td, t0_td, fs, baseline=np.mean(trace[:16000]))
+        
         #nonlinof = OFnonlin(psd = psd, fs = fs, template=template)
         #fitparams,errors_nonlin,_,chi2nonlin = nonlinof.fit_falltimes(trace_bsSub, lgcdouble = True,
         #                                              lgcfullrtn = True, lgcplot=  False)
@@ -187,6 +190,8 @@ def process_RQ(file, params):
         temp_data['ofAmps_tdelay'].append(amp_td)
         temp_data['tdelay'].append(t0_td)
         temp_data['chi2_tdelay'].append(chi2_td)
+        
+        temp_data['chi2_timedomain'].append(chi2_timedomain)
         
 #         temp_data['A_nonlin'].append(Anonlin)
 #         temp_data['taurise'].append(tau_r)
@@ -1040,8 +1045,16 @@ def convert_to_power(trace, I_offset,I_bias,Rsh, Rl):
 
 def integral_Energy_caleb(trace_power, time):
 
-    baseline_p0 = np.mean(np.hstack((trace_power[:6000],trace_power[9000:])))
+    baseline_p0 = np.mean(np.hstack((trace_power[:16000],trace_power[20000:])))
     return  np.trapz(baseline_p0 - trace_power, x = time)/constants.e
+
+def chi2_td(signal, template, amp, tshift, fs, baseline=0):
+    
+    signal_bssub= signal - baseline
+    tmplt = amp*np.roll(template, int(tshift*fs))
+    chi2 = np.sum((signal_bssub-tmplt)**2)
+    
+    return chi2
     
     
 def setplot_style():
