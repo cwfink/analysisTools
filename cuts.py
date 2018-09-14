@@ -113,27 +113,47 @@ def savecut(cutarr, name):
  
 
 
-def listcuts():
+def listcuts(whichcuts = 'current'):
     """
     Function to return all the available cuts saved in current_cuts/
+    or archived_cuts/
     
     Parameters
     ----------
-        None
+        whichcuts: str, optional
+            String to specify which cuts to return. Can be 'current' or
+            'archived'. If 'current', only the cuts in the current_cuts/ 
+            directory are returned. If 'archived', the old cuts in the 
+            archived_cuts/ directory are returned
         
     Returns
     -------
         allcuts: list
             List of names of all current cuts available
+            
+    Raises
+    ------
+        ValueError
+            If whichcuts is not 'current' or 'archived'
+            
     """
+    
     allcuts = []
     path = os.path.dirname(os.path.abspath(__file__))
     
-    if not os.path.isdir(f'{path}/current_cuts'):
+    
+    if whichcuts == 'current':
+        cutdir = 'current_cuts'
+    elif whichcuts == 'archived':
+        cutdir = 'archived_cuts'
+    else:
+        raise ValueError("Please select either 'current' or 'archived'")
+    
+    if not os.path.isdir(f'{path}/{cutdir}'):
         print('No cuts have been generated yet')
         return
     
-    files = glob(f'{path}/current_cuts/*')
+    files = glob(f'{path}/{cutdir}/*')
     
     if len(files) == 0:
         print('No cuts have been generated yet')
@@ -142,6 +162,58 @@ def listcuts():
         for file in files:
             allcuts.append(file.split('/')[-1].split('.')[0])
         return allcuts
+        
+def loadcut(name, lgccurrent = True):
+    """
+    Function to load a cut mask from disk into memory. The name should just be the 
+    base name of the cut, with no file extension. If an archived cut is desired, the 
+    version of the cut must be part of the name, i.e. 'cbase_v3'
+    
+    Parameters
+    ----------
+        name: str
+            The name of the cut to be loaded
+        lgccurrent: bool, optional
+            If True, the current cut with corresponding name is loaded,
+            if False, the archived cut is loaded
+    
+    Returns
+    -------
+        cut: ndarray
+            Array of booleans
+    
+    Raises
+    ------
+        FileNotFoundError
+            If the user specified cut cannot be loaded
+            
+    """
+    path = os.path.dirname(os.path.abspath(__file__))
+    
+    
+    if lgccurrent:
+        cutdir = 'current_cuts'
+    else:
+        cutdir = 'archived_cuts'
+    
+    
+    try:
+        cut = np.load(f'{path}/{cutdir}/{name}.npy')
+        return cut
+    except FileNotFoundError:
+        raise FileNotFoundError(f'{name} not found in {path}/{cutdir}/')
+        
+        
+    
+        
+        
+            
+        
+        
+        
+        
+        
+        
         
 
                           
