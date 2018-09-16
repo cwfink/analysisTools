@@ -2,6 +2,7 @@ import numpy as np
 from qetpy.utils import removeoutliers
 from glob import glob
 import os
+import git
 
 
 
@@ -50,6 +51,15 @@ def calcbaselinecut(arr, r0, i0, rload, dr = 0.1e-3, cut = None):
     
     return cbase_pre
 
+
+class Error(Exception):
+   """Base class for other exceptions"""
+   pass
+
+class GitError(Error):
+   """Raised when there is a git related issue"""
+   pass
+
 class CutUtils(object):
     """
     Class to manage the saveing, loading, and archiving of cut masks for a decector analysis/DM search. 
@@ -76,11 +86,16 @@ class CutUtils(object):
     fullpath: str
         The absolute path to the save path for the cut masks. It will be the absolute path to the repository 
         where the analysis is being done, plus the relativepath
+    lgcsync: bool
+        If True, the local working directory will be synced with the github repository. If False, the saved
+        cuts will only be kept locally. 
+    repo: GitPython Repo object
+        The github repository address to be used if connecting CutUtils to github
         
         
     """
     
-    def __init__(self,relativepath):
+    def __init__(self,relativepath, lgcsync = True):
         """
         Initialization of the CutUtils object. If the directory structure to save the cuts is not already in 
         place, they will be created upon instantiation of a CutUtils object
@@ -92,8 +107,13 @@ class CutUtils(object):
                 within the repository. For example, if working on an analysis for a particular run and dataset, 
                 set relativepath = 'Run44_dataset1'. Note, this path need not exist before creation of the CutUtils 
                 object, it will be created upon instantiation.
+            lgcsync: bool, optional
+                If True, the local working directory will be synced with the github repository. If False, the saved
+                cuts will only be kept locally. 
                 
         """
+        self.lgcsync = lgcsync
+        
         if relativepath[0] != '/':
             relativepath = '/' + relativepath
         if relativepath[-1] == '/':
@@ -108,6 +128,11 @@ class CutUtils(object):
         if not os.path.isdir(f'{self.fullpath}/archived_cuts'):
             print(f'folder: {self.relativepath}/archived_cuts/ does not exist, it is being created now')
             os.makedirs(f'{self.fullpath}/archived_cuts')
+        if lgcsync:  
+            print('Connecting to GitHub Repository, please insure that your ssh keys have been uploaded to GitHub account')
+            self.repo = git.Repo(os.path.dirname(os.path.abspath(__file__)))
+        else:
+            self.repo = None
 
     def savecut(self,cutarr, name, description):
         """
@@ -133,8 +158,20 @@ class CutUtils(object):
         Returns
         -------
             None
+            
+        Raises
+        ------
+            GitError
+                If there is an issue with the status of the remote repo, or 
+                a problem with saving, a GitError is raised
 
         """
+        
+        # If connecting with GitHub repo, first do a pull to make sure remote is
+        # up to date. 
+        if self.lgcsync:
+            self.dopull()
+        
         path = self.fullpath
 
         # check if there is a current cut, then check if it has been changed
@@ -146,6 +183,9 @@ class CutUtils(object):
             else:
                 print(f'updating cut: {name} in directory: {path}/current_cuts/ and achiving old version')
                 np.savez_compressed(f'{path}/current_cuts/{name}', cut = cutarr, cutdescription=description)
+                if self.lgcsync:
+                    print('syncing new cut with GitHub repo...')
+                    self.pushcut(f'{self.relativepath}/current_cuts/{name}.npz', description)
 
                 files_old = glob(f'{path}/archived_cuts/{name}_v*')
                 if len(files_old) > 0:
@@ -155,10 +195,16 @@ class CutUtils(object):
                     version = 0
                 np.savez_compressed(f'{path}/archived_cuts/{name}_v{version}', cut = ctemp, cutdescription=description)
                 print(f'old cut is saved as: {path}/archived_cuts/{name}_v{version}.npz')
+                if self.lgcsync:
+                    print('syncing old cut with GitHub repo...')
+                    self.pushcut(f'{self.relativepath}/archived_cuts/{name}_v{version}.npz', f'archived cut {name}')
 
         except FileNotFoundError:
             print(f'No existing version of cut: {name}. \n Saving cut: {name}, to directory: {path}/current_cuts/')
             np.savez_compressed(f'{path}/current_cuts/{name}', cut = cutarr, cutdescription=description)
+            if self.lgcsync:
+                print('syncing new cut with GitHub repo...')
+                self.pushcut(f'{self.relativepath}/current_cuts/{name}.npz', description)
 
         return
 
@@ -187,8 +233,16 @@ class CutUtils(object):
         ------
             ValueError
                 If whichcuts is not 'current' or 'archived'
+            GitError
+                If there is an issue with the status of the remote repo, 
+                a GitError is raised
 
         """
+        
+        # If connecting with GitHub repo, first do a pull to make sure remote is
+        # up to date. 
+        if self.lgcsync:
+            self.dopull()
 
         allcuts = []
         path = self.fullpath
@@ -238,8 +292,16 @@ class CutUtils(object):
         ------
             FileNotFoundError
                 If the user specified cut cannot be loaded
+            GitError
+                If there is an issue with the status of the remote repo,
+                a GitError is raised
 
         """
+        # If connecting with GitHub repo, first do a pull to make sure remote is
+        # up to date. 
+        if self.lgcsync:
+            self.dopull()
+        
         path = self.fullpath
 
 
@@ -281,8 +343,17 @@ class CutUtils(object):
         ------
             FileNotFoundError
                 If the user specified cut cannot be loaded
+            GitError
+                If there is an issue with the status of the remote repo,
+                a GitError is raised
 
         """
+        
+        # If connecting with GitHub repo, first do a pull to make sure remote is
+        # up to date. 
+        if self.lgcsync:
+            self.dopull()
+        
         path = self.fullpath
 
 
@@ -299,8 +370,68 @@ class CutUtils(object):
             raise FileNotFoundError(f'{name} not found in {path}/{cutdir}/')    
 
 
-
+    
+    def dopull(self):
+        """
+        Simple function to do a git pull from the master branch. It also checks the 
+        git status after the pull and checks that the remote is up to date
         
+        Parameters
+        ----------
+            None
+        
+        Returns
+        -------
+            None
+        
+        Raises
+        ------
+            GitError
+                If there is an issue with the status of the remote repo, or 
+                a problem with saving, a GitError is raised
+        
+        
+        """
+        self.repo.git.pull('origin', 'master')
+        if not self.repo.git.status().split('\n')[1] == "Your branch is up to date with 'origin/master'.":
+            raise GitError('Remote repository is not up to date with branch master, this may cause issues with saving \
+            \n please make sure repositories are in sync before proceeding')
+        
+        
+    def pushcut(self, file, commitmessage):
+        """
+        Function to push newly made cut to master branch of repository
+        
+        Paramters
+        ---------
+            file: str
+                The relative path to the file to be added
+            commitmessage: str
+                The commit message for the added file
+                
+        Returns
+        -------
+            None
+            
+        Raises
+        ------
+            GitError
+                If there is an issue with the status of the remote repo, or 
+                a problem with saving, a GitError is raised
+                
+        """
+        
+        
+        self.dopull()
+        
+        self.repo.git.add(file)
+        repo.git.commit(m = commitmessage)
+        try: 
+            repo.git.push('origin', 'master')
+        except:
+            raise GitError(f'Unable to push new {file} to master')
+            
+
         
         
         
