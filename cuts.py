@@ -425,9 +425,9 @@ class CutUtils(object):
         self.dopull()
         
         self.repo.git.add(file)
-        repo.git.commit(m = commitmessage)
+        self.repo.git.commit(m = commitmessage)
         try: 
-            repo.git.push('origin', 'master')
+            self.repo.git.push('origin', 'master')
         except:
             raise GitError(f'Unable to push new {file} to master')
             
