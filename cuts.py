@@ -185,7 +185,7 @@ class CutUtils(object):
                 np.savez_compressed(f'{path}/current_cuts/{name}', cut = cutarr, cutdescription=description)
                 if self.lgcsync:
                     print('syncing new cut with GitHub repo...')
-                    self.pushcut(f'{self.relativepath}/current_cuts/{name}.npz', description)
+                    self.pushcut(f'{self.relativepath[1:]}/current_cuts/{name}.npz', description)
 
                 files_old = glob(f'{path}/archived_cuts/{name}_v*')
                 if len(files_old) > 0:
@@ -197,14 +197,14 @@ class CutUtils(object):
                 print(f'old cut is saved as: {path}/archived_cuts/{name}_v{version}.npz')
                 if self.lgcsync:
                     print('syncing old cut with GitHub repo...')
-                    self.pushcut(f'{self.relativepath}/archived_cuts/{name}_v{version}.npz', f'archived cut {name}')
+                    self.pushcut(f'{self.relativepath[1:]}/archived_cuts/{name}_v{version}.npz', f'archived cut {name}')
 
         except FileNotFoundError:
             print(f'No existing version of cut: {name}. \n Saving cut: {name}, to directory: {path}/current_cuts/')
             np.savez_compressed(f'{path}/current_cuts/{name}', cut = cutarr, cutdescription=description)
             if self.lgcsync:
                 print('syncing new cut with GitHub repo...')
-                self.pushcut(f'{self.relativepath}/current_cuts/{name}.npz', description)
+                self.pushcut(f'{self.relativepath[1:]}/current_cuts/{name}.npz', description)
 
         return
 
