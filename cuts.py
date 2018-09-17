@@ -1,64 +1,18 @@
 import numpy as np
-from qetpy.utils import removeoutliers
 from glob import glob
 import os
 import git
-
-
-
-
-
-def calcbaselinecut(arr, r0, i0, rload, dr = 0.1e-3, cut = None):
-    """
-    Function to automatically generate the pre-pulse baseline cut. 
-    The value where the cut is placed is set by dr, which is the user
-    specified change in resistance from R0
-    
-    Parameters
-    ----------
-        arr: ndarray
-            Array of values to generate cut with
-        r0: float
-            Operating resistance of TES
-        i0: float
-            Quiescent operating current of TES
-        rload: float
-            The load resistance of the TES circuit, (Rp+Rsh)
-        dr: float, optional
-            The change in operating resistance where the
-            cut should be placed
-        cut: ndarray, optional
-            Initial cut mask to use in the calculation of the pre-pulse
-            baseline cut
-            
-    Returns:
-    --------
-        cbase_pre: ndarray
-            Array of type bool, corresponding to values which pass the 
-            pre-pulse baseline cut
-            
-    """
-    
-    if cut is None:
-        cut = np.ones_like(arr, dtype = bool)
-    
-    base_inds = removeoutliers(arr[cut])
-    meanval = np.mean(arr[cut][base_inds])
-    
-    di = -(dr/(r0+dr+rload)*i0)
-    
-    cbase_pre = (arr < (meanval + di))
-    
-    return cbase_pre
 
 
 class Error(Exception):
    """Base class for other exceptions"""
    pass
 
+
 class GitError(Error):
    """Raised when there is a git related issue"""
    pass
+
 
 class CutUtils(object):
     """
@@ -112,13 +66,12 @@ class CutUtils(object):
                 cuts will only be kept locally. 
                 
         """
-        self.lgcsync = lgcsync
         
+        self.lgcsync = lgcsync   
         if relativepath[0] != '/':
             relativepath = '/' + relativepath
         if relativepath[-1] == '/':
             relativepath = relativepath[:-1]
-            
         self.relativepath = relativepath
         self.fullpath = os.path.dirname(os.path.abspath(__file__)) + self.relativepath
         
@@ -134,6 +87,7 @@ class CutUtils(object):
         else:
             self.repo = None
 
+                       
     def savecut(self,cutarr, name, description):
         """
         Function to save cut arrays. The function first checks the current_cut/ directory
@@ -143,8 +97,6 @@ class CutUtils(object):
 
         Cut arrays are saved as .npz files, with keys: 'cut' -> the cut array, and 
         'cutdescription' -> a short message about how the cut was calculated.
-
- 
 
         Parameters
         ----------
@@ -170,10 +122,8 @@ class CutUtils(object):
         # If connecting with GitHub repo, first do a pull to make sure remote is
         # up to date. 
         if self.lgcsync:
-            self.dopull()
-        
+            self.dopull()        
         path = self.fullpath
-
         # check if there is a current cut, then check if it has been changed
         try:
             ctemp = np.load(f'{path}/current_cuts/{name}.npz')['cut']
@@ -243,24 +193,18 @@ class CutUtils(object):
         # up to date. 
         if self.lgcsync:
             self.dopull()
-
         allcuts = []
         path = self.fullpath
-
-
         if whichcuts == 'current':
             cutdir = 'current_cuts'
         elif whichcuts == 'archived':
             cutdir = 'archived_cuts'
         else:
             raise ValueError("Please select either 'current' or 'archived'")
-
         if not os.path.isdir(f'{path}/{cutdir}'):
             print('No cuts have been generated yet')
             return
-
         files = glob(f'{path}/{cutdir}/*')
-
         if len(files) == 0:
             print('No cuts have been generated yet')
             return
@@ -269,6 +213,7 @@ class CutUtils(object):
                 allcuts.append(file.split('/')[-1].split('.')[0])
             return allcuts
 
+        
     def loadcut(self, name, lgccurrent = True):
         """
         Function to load a cut mask from disk into memory. The name should just be the 
@@ -297,26 +242,21 @@ class CutUtils(object):
                 a GitError is raised
 
         """
+        
         # If connecting with GitHub repo, first do a pull to make sure remote is
         # up to date. 
         if self.lgcsync:
-            self.dopull()
-        
+            self.dopull()       
         path = self.fullpath
-
-
         if lgccurrent:
             cutdir = 'current_cuts'
         else:
             cutdir = 'archived_cuts'
-
-
         try:
             cut = np.load(f'{path}/{cutdir}/{name}.npz')['cut']
             return cut
         except FileNotFoundError:
             raise FileNotFoundError(f'{name} not found in {path}/{cutdir}/')
-
 
 
 
@@ -353,23 +293,18 @@ class CutUtils(object):
         # up to date. 
         if self.lgcsync:
             self.dopull()
-        
         path = self.fullpath
-
-
         if lgccurrent:
             cutdir = 'current_cuts'
         else:
             cutdir = 'archived_cuts'
-
-
         try:
             cutmessage = np.load(f'{path}/{cutdir}/{name}.npz')['cutdescription']
             return str(cutmessage)
         except FileNotFoundError:
             raise FileNotFoundError(f'{name} not found in {path}/{cutdir}/')    
 
-
+### git related functions if collaborating on GitHub ###
     
     def dopull(self):
         """
@@ -389,9 +324,9 @@ class CutUtils(object):
             GitError
                 If there is an issue with the status of the remote repo, or 
                 a problem with saving, a GitError is raised
-        
-        
+              
         """
+        
         self.repo.git.pull('origin', 'master')
         if not self.repo.git.status().split('\n')[1] == "Your branch is up to date with 'origin/master'.":
             raise GitError('Remote repository is not up to date with branch master, this may cause issues with saving \
@@ -421,9 +356,8 @@ class CutUtils(object):
                 
         """
         
-        
-        self.dopull()
-        
+        #Always do a git pull before adding a file to make sure repo's are up to date
+        self.dopull()  
         self.repo.git.add(file)
         self.repo.git.commit(m = commitmessage)
         try: 
