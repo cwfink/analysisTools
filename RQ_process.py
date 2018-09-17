@@ -641,10 +641,35 @@ def double_gauss(x, *p):
 
 
 
-def get_hist_data(DF, cut, var, bins = 'sqrt'):
-    hist, bins = np.histogram(DF[cut][var],bins = bins)
+def hist_data(arr,xrange = None, bins = 'sqrt'):
+    print(xrange)
+    if xrange is not None:
+        hist, bins = np.histogram(arr,bins = bins, range = xrange)
+    else:
+        hist, bins = np.histogram(arr,bins = bins)
     x = (bins[1:]+bins[:-1])/2
     return x, hist, bins
+
+def find_peak(arr ,xrange = None):
+
+    x,y, bins = hist_data(arr,  xrange)
+
+
+    if xrange is not None:
+        cut = (arr < xrange[1]) & (arr > xrange[0])
+        arr = arr[cut]
+    
+    fit = stats.norm.fit(arr)
+    plt.figure(figsize=(9,6))
+    sns.distplot(arr, kde=False, fit = stats.norm, norm_hist=False
+                 , hist_kws = {'histtype': 'step','linewidth':3})
+    plt.plot([],[], linestyle = ' ', label = f' μ = {fit[0]:.2f}')
+    plt.plot([],[], linestyle = ' ', label = f' σ = {fit[1]:.2f}')
+    plt.plot([],[], linestyle = ' ', label = f' N = {max(y):.2f}')
+
+    plt.legend()
+    plt.grid(True, linestyle = 'dashed')
+    return fit[0], fit [1], max(y)
 
 
 
