@@ -59,6 +59,95 @@ def calcbaselinecut(arr, r0, i0, rload, dr = 0.1e-3, cut = None):
     
     return cbase_pre
 
+def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], convtoamps=1, fs=625e3, 
+                  lgcplot=False, ntraces=1, nplot=20):
+    """
+    Function for loading (and plotting) random events from a datasets. Has functionality to pull 
+    randomly from a specified cut. For use with scdmsPyTools.BatTools.IO.getRawEvents
+    
+    Parameters
+    ----------
+        basepath : str
+            The base path to the directory that contains the folders that the event dumps 
+            are in. The folders in this directory should be the series numbers.
+        evtnums : array_like
+            An array of all event numbers for the events in all datasets.
+        seriesnums : array_like
+            An array of the corresponding series numbers for each event number in evtnums.
+        cut : array_like, optional
+            A boolean array of the cut that should be applied to the data. If left as None,
+            then no cut is applied.
+        channels : list, optional
+            A list of strings that contains all of the channels that should be loaded.
+        convtoamps : float, optional
+            The factor that the traces should be multiplied by to convert ADC bins to Amperes.
+        fs : float, optional
+            The sample rate in Hz of the data.
+        ntraces : int, optional
+            The number of traces to randomly load from the data (with the cut, if specified)
+        lgcplot : bool, optional
+            Logical flag on whether or not to plot the pulled traces.
+        nplot : int, optional
+            If lgcplot is True, the number of traces to plot.
+        
+    Returns
+    -------
+        t : ndarray
+            The time values for plotting the events.
+        x : ndarray
+            Array containing all of the events that were pulled.
+        c_out : ndarray
+            Boolean array that contains the cut on the loaded data.
+    
+    """
+    
+    if type(evtnums) is pd.core.series.Series:
+        evtnums = evtnums.tolist()
+    
+    
+    if cut is not None:
+        cut = np.ones(len(evtnums), dtype=bool)
+        
+    inds = np.random.choice(np.flatnonzero(cut), size=ntraces, replace=False)
+        
+    crand = np.zeros(len(evtnums), dtype=bool)
+    for ind in inds:
+        crand[ind] = True
+    
+    arrs = list()
+    for snum in seriesnums[crand].unique():
+        cseries = crand & (seriesnums == snum)
+        arr = getRawEvents(f"{basepath}{snum}/", "", channelList=channels, outputFormat=3, 
+                           eventNumbers=evtnums[cseries])
+        arrs.append(arr)
+        
+    chans = list()
+    for chan in channels:
+        chans.append(arr["Z1"]["pChan"].index(chan))
+    chans = sorted(chans)
+
+    x = np.vstack([a["Z1"]["p"][:, chans] for a in arrs]).astype(float)
+    t = np.arange(x.shape[-1])/fs
+    
+    x*=convtoamps
+    
+    if lgcplot:
+    
+        colors = plt.cm.viridis(np.linspace(0, 1, num=nplot), alpha=0.5)
+
+        for ii in range(nplot):
+
+            fig, ax = plt.subplots(figsize=(10, 6))
+            for chan in chans:
+                ax.plot(t * 1e6, x[ii, chan] * 1e6, color=colors[ii], label="Channel {arr['Z1']['pChan'][chan]}")
+            ax.grid()
+            ax.set_ylabel("Current [μA]")
+            ax.set_xlabel("Time [μs]")
+            ax.set_title(f"Pulses, Evt Num {evtnums[crand].iloc[ii]}, Series Num {seriesnums[crand].iloc[ii]}");
+    
+    
+    return t, x, crand
+
 
 def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4, 'adcpervolt' : 2**(16)/2}):
     """
