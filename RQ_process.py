@@ -903,7 +903,7 @@ def td_chi2(signal, template, amp, tshift, fs, baseline=0):
     
     
     
-def correct_integral(xenergies, ypeaks, errors):    
+def correct_integral(xenergies, ypeaks, errors, DF):    
     
     def saturation_func(x,a,b,c):
         return a*x+b*x**c
@@ -930,6 +930,8 @@ def correct_integral(xenergies, ypeaks, errors):
 
     plt.xlim(0, 6800)
     plt.ylim(0, 1100)
+    
+    DF['saturation_corr_int'] = DF.energy_integral1*ypeaks[0]/xenergies[0]
 
 
     
