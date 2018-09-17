@@ -101,10 +101,11 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     
     """
     
-    if type(evtnums) is pd.core.series.Series:
-        evtnums = evtnums.tolist()
-    
-    
+    if type(evtnums) is not pd.core.series.Series:
+        evtnums = pd.Series(data=evtnums)
+    if type(seriesnums) is not pd.core.series.Series:
+        seriesnums = pd.Series(data=seriesnums)
+        
     if cut is not None:
         cut = np.ones(len(evtnums), dtype=bool)
         
@@ -118,7 +119,7 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     for snum in seriesnums[crand].unique():
         cseries = crand & (seriesnums == snum)
         arr = getRawEvents(f"{basepath}{snum}/", "", channelList=channels, outputFormat=3, 
-                           eventNumbers=evtnums[cseries])
+                           eventNumbers=evtnums[cseries].tolist())
         arrs.append(arr)
         
     chans = list()
