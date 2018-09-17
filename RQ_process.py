@@ -528,8 +528,15 @@ def plotRQ(xvals, yvals, xlims = None, ylims = None, cutold = None, cutnew = Non
 
     limitcut = xlimitcut & ylimitcut
     
-    if lgcrawdata:
-        ax.scatter(xvals[limitcut], yvals[limitcut], label = 'Full Data', c = 'b', s = ms, alpha = a)
+    if lgcrawdata and (cutnew is not None and cutold is not None):
+        ax.scatter(xvals[limitcut & ~cutold & ~cutnew], yvals[limitcut & ~cutold & ~cutnew], 
+                   label = 'Full Data', c = 'b', s = ms, alpha = a)
+    elif lgcrawdata and cutnew is not None: 
+        ax.scatter(xvals[limitcut & ~cutnew], yvals[limitcut & ~cutnew], 
+                   label = 'Full Data', c = 'b', s = ms, alpha = a)
+    elif lgcrawdata and cutold is not None: 
+        ax.scatter(xvals[limitcut & ~cutold], yvals[limitcut & ~cutold], 
+                   label = 'Full Data', c = 'b', s = ms, alpha = a)
         
     if cutold is not None:
         oldsum = cutold.sum()
