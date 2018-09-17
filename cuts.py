@@ -1,3 +1,13 @@
+"""
+A class for managing boolean cut masks (or any numpy ndarray) between multiple collaborators using 
+shared GibHub repository
+
+Author: Caleb Fink 09/16/18
+
+"""
+
+
+
 import numpy as np
 from glob import glob
 import os
