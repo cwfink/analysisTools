@@ -902,6 +902,37 @@ def td_chi2(signal, template, amp, tshift, fs, baseline=0):
     return chi2
     
     
+    
+def correct_integral(xenergies, ypeaks, errors):    
+    
+    def saturation_func(x,a,b,c):
+        return a*x+b*x**c
+
+
+    popt, cov = curve_fit(saturation_func, x, y, sigma = yerr, absolute_sigma=True, maxfev = 10000)
+
+    x_fit = np.linspace(0, xenergies[-1], 100)
+    y_fit = func(x_fit, *popt )
+
+
+    plt.figure(figsize=(12,8))
+    plt.grid(True, linestyle = 'dashed', label = 'Spectral Peaks')
+    plt.scatter(x,y)
+    plt.errorbar(x,y, yerr=yerr, linestyle = ' ')
+    plt.plot(x_fit, y_fit, label = 'y = $ax+bx^c$')
+    plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', label = 'linear calibration from Al fluorescence')
+    plt.plot(x_fit,x_fit*ypeaks[-2]/xenergies[-2],linestyle = '--', label = 'linear calibration from Kα')
+    plt.ylabel('Calculated Integral Energy[eV]')
+    plt.xlabel('True Energy [eV]')
+    plt.title('Integrated Energy Saturation Correction')
+
+    plt.legend()
+
+    plt.xlim(0, 6800)
+    plt.ylim(0, 1100)
+
+
+    
 def setplot_style():
     sns.reset_defaults()
     sns.set_context('notebook')
