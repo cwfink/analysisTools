@@ -379,7 +379,33 @@ class CutUtils(object):
         
         
         
+    def updatecuts(self):
+        """
+        Function to load all the current cuts into the global namespace. These can only be accessed 
+        within cuts.py though. To bring them into the working directory, the user can do run:
+        'from cuts import *, or from cuts import (the cuts that were added)'. Also, updatecuts 
+        returns a print statement that can be executed to import the new cuts. The user can simply 
+        call updatecuts by typing: exec(CutUtilsObject.updatecuts()), and the new cuts will
+        be loaded into the workig namespace. 
         
+        Parameters
+        ----------
+            None
+            
+        Returns
+        -------
+            importstring: str
+                A string with the proper formatting to be called by exec(), which will
+                import the newly loaded cuts into the working namespace
+            
+        """
+        cutnames = self.listcuts()
+        for c in cutnames:
+            globals()[c] = self.loadcut(c)
+        print(f'The following cuts will be loaded into the namespace of cuts.py: {cutnames}')
+        importstring = f"from cuts import {', '.join(cutnames)}"
+        return importstring
+
 
                           
                           
