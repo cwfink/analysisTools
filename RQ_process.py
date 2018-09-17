@@ -480,33 +480,33 @@ def plotRQ(xvals, yvals, xlims = None, ylims = None, cutold = None, cutnew = Non
     
     Parameters
     ----------
-    xvals: array
-        Array of x values to be plotted
-    yvals: array
-        Array of y values to be plotted
-    xlims: list of floats, optional
-        This is passed to the plot as the x limits
-    ylims: list of floats, optional
-        This is passed to the plot as the y limits
-    cutold: array of booleans, optional
-        mask of values to be plotted
-    cutnew: array of booleans, optional
-        mask of values to be plotted. This mask is added to cutold if cutold is not None. 
-    lgcrawdata: boolean, optional
-        if True, the raw data is plotted
-    lgceff: boolean, optional
-        if True, the cuff efficiencies are printed in the legend. The total eff will be the sum of all the 
-        cuts divided by the length of the data. the current cut eff will be the sum of the current cut 
-        divided by the sum of all the previous cuts, if any
-    labeldict: dictionary, optional
-        dictionary to overwrite the labels of the plot. defaults are : 
-            labels = {'title' : 'Histogram', 'xlabel' : 'variable', 'ylabel' : 'Count', 'cutnew' : 'current' 
-            , 'cutold' : 'previous'}
-        Ex: to change just the title, pass: labeldict = {'title' : 'new title'}, to histRQ()
-    ms: float, optional
-        The size of each marker in the scatter plot. Default is 1
-    a: float, optional
-        The opacity of the markers in the scatter plot, i.e. alpha. Default is 0.3
+        xvals: array
+            Array of x values to be plotted
+        yvals: array
+            Array of y values to be plotted
+        xlims: list of floats, optional
+            This is passed to the plot as the x limits
+        ylims: list of floats, optional
+            This is passed to the plot as the y limits
+        cutold: array of booleans, optional
+            mask of values to be plotted
+        cutnew: array of booleans, optional
+            mask of values to be plotted. This mask is added to cutold if cutold is not None. 
+        lgcrawdata: boolean, optional
+            if True, the raw data is plotted
+        lgceff: boolean, optional
+            if True, the cuff efficiencies are printed in the legend. The total eff will be the sum of all the 
+            cuts divided by the length of the data. the current cut eff will be the sum of the current cut 
+            divided by the sum of all the previous cuts, if any
+        labeldict: dictionary, optional
+            dictionary to overwrite the labels of the plot. defaults are : 
+                labels = {'title' : 'Histogram', 'xlabel' : 'variable', 'ylabel' : 'Count', 'cutnew' : 'current' 
+                , 'cutold' : 'previous'}
+            Ex: to change just the title, pass: labeldict = {'title' : 'new title'}, to histRQ()
+        ms: float, optional
+            The size of each marker in the scatter plot. Default is 1
+        a: float, optional
+            The opacity of the markers in the scatter plot, i.e. alpha. Default is 0.3
     
     Returns
     -------
@@ -669,7 +669,6 @@ def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     plt.title(title)
     #plt.savefig(saveFigPath+'OF_amp_fit_fake.png')
     plt.show()
-    print(popt)
 
     energy_per_amp59 = (5.9e3)/peak59
     energy_per_amp649= (6.49e3)/peak64
@@ -694,11 +693,7 @@ def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     plt.grid(True, linestyle = 'dashed')
     #plt.savefig(saveFigPath+'OF_amp_fit_energy_fake.png')
     plt.show()
-
-    print(peak59)
-    print(peak64)
-    
-    
+       
     return energy_per_amp59
 
 
