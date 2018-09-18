@@ -638,7 +638,10 @@ def double_gauss(x, *p):
     y_fit = norm(x,a1, m1, sd1) + norm(x,a2, m2, sd2)
     return y_fit
 
-
+def get_hist_data(DF, cut, var, bins = 'sqrt'):
+    hist, bins = np.histogram(DF[cut][var],bins = bins)
+    x = (bins[1:]+bins[:-1])/2
+    return x, hist, bins
 
 def hist_data(arr,xrange = None, bins = 'sqrt'):
     print(xrange)
@@ -649,14 +652,52 @@ def hist_data(arr,xrange = None, bins = 'sqrt'):
     x = (bins[1:]+bins[:-1])/2
     return x, hist, bins
 
-def find_peak(arr ,xrange = None):
+def find_peak(arr ,xrange = None, noiserange = None):
+    """
+    Function to fit normal distribution to peak in spectrum. 
+    
+    Parameters
+    ----------
+        arr: ndarray
+            Array of data to bin and fit to gaussian
+        xrange: tuple, optional
+            The range of data to use when binning
+        noiserange: tuple, optional
+            nested 2-tuple. should contain the range before 
+            and after the peak to be used for subtracting the 
+            background
+    Returns
+    -------
+        mu: float
+            The first moment of the fitted distribution
+        sigma: float
+            The second moment of the fitted distribution
+        N: int
+            The hight of the peak
+            
+    """
+    
 
     x,y, bins = hist_data(arr,  xrange)
-
-
+    
     if xrange is not None:
         cut = (arr < xrange[1]) & (arr > xrange[0])
         arr = arr[cut]
+    
+    if noiserange is not None:
+        clowl = noiserange[0][0]
+        clowh = noiserange[0][1]
+        
+        indlowl = (np.abs(x - clowl)).argmin()
+        indlowh = (np.abs(x - clowh)).argmin()
+        
+        chighl = noiserange[1][0]
+        chighh = noiserange[1][1]
+        
+        indhighl = (np.abs(x - chighl)).argmin()
+        indhighh = (np.abs(x - chighh)).argmin()
+        
+        background = np.mean(np.stack((y[indlowl:indlowh],y[indhighl:indhighh])))
     
     fit = stats.norm.fit(arr)
     plt.figure(figsize=(9,6))
@@ -665,7 +706,8 @@ def find_peak(arr ,xrange = None):
     plt.plot([],[], linestyle = ' ', label = f' μ = {fit[0]:.2f}')
     plt.plot([],[], linestyle = ' ', label = f' σ = {fit[1]:.2f}')
     plt.plot([],[], linestyle = ' ', label = f' N = {max(y):.2f}')
-
+    if noiserange is not None:
+        plt.axhline(background)
     plt.legend()
     plt.grid(True, linestyle = 'dashed')
     return fit[0], fit [1], max(y)
