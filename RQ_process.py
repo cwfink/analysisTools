@@ -644,7 +644,6 @@ def get_hist_data(DF, cut, var, bins = 'sqrt'):
     return x, hist, bins
 
 def hist_data(arr,xrange = None, bins = 'sqrt'):
-    print(xrange)
     if xrange is not None:
         hist, bins = np.histogram(arr,bins = bins, range = xrange)
     else:
@@ -673,28 +672,32 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     -------
         fitparams: tuple
             The best fit parameters of the fit; A, mu, sigma
+        errors: ndarray
+            The uncertainty in the fit parameters
             
     """
     
-
     x,y, bins = hist_data(arr,  xrange)
-    
-   
-    
     if noiserange is not None:
-        clowl = noiserange[0][0]
+        if noiserange[0][0] >= xrange[0]:
+            clowl = noiserange[0][0]
+        else:
+            clow = xrange[0]
         clowh = noiserange[0][1]
         chighl = noiserange[1][0]
-        chighh = noiserange[1][1]       
+        if noiserange[1][1] <= xrange[1]:
+            chighh = noiserange[1][1] 
+        else:
+            chighh = xrange[1]
         indlowl = (np.abs(x - clowl)).argmin()
         indlowh = (np.abs(x - clowh)).argmin() 
         indhighl = (np.abs(x - chighl)).argmin()
-        indhighh = (np.abs(x - chighh)).argmin()
-        background = np.mean(np.stack((y[indlowl:indlowh],y[indhighl:indhighh])))
+        indhighh = (np.abs(x - chighh)).argmin() - 1
+        print(indlowl, indlowh, indhighl, indhighh)
+        print(y.shape)
+        background = np.mean(np.concatenate((y[indlowl:indlowh],y[indhighl:indhighh])))
         y_noback = y - background
-        
-
-    
+         
     if noiserange is not None:
         y_to_fit = y_noback
     else:
@@ -704,14 +707,14 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     mu0 = x[np.argmax(y_to_fit)]
     sig0 = np.abs(mu0 - x[np.abs(y_to_fit - np.max(y_to_fit)/2).argmin()])
     p0 = (A0, mu0, sig0)
-    print(p0)
-    fitparams = curve_fit(norm, x, y_to_fit, p0)[0]
+    fitparams, cov = curve_fit(norm, x, y_to_fit, p0)
+    errors = np.sqrt(np.diag(cov))
     x_fit = np.linspace(xrange[0], xrange[-1], 250)
     
     plt.figure(figsize=(9,6))
-    plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2f}')
-    plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2f}')
-    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f}')
+    plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2f} $\pm$ {errors[1]:.2f}')
+    plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2f} $\pm$ {errors[2]:.2f}')
+    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.2f}')
     if lgcplotorig:
         plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='original data', alpha = .3)
         plt.axhline(background, label = 'average background rate', linestyle = '--', alpha = .3)
@@ -722,7 +725,7 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     plt.legend()
     plt.grid(True, linestyle = 'dashed')
     
-    return fitparams
+    return fitparams, errors
 
 def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     x, hist,bins = get_hist_data(DF,cut, var)
