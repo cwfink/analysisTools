@@ -693,8 +693,6 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
         indlowh = (np.abs(x - clowh)).argmin() 
         indhighl = (np.abs(x - chighl)).argmin()
         indhighh = (np.abs(x - chighh)).argmin() - 1
-        print(indlowl, indlowh, indhighl, indhighh)
-        print(y.shape)
         background = np.mean(np.concatenate((y[indlowl:indlowh],y[indhighl:indhighh])))
         y_noback = y - background
          
@@ -773,7 +771,7 @@ def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     #plt.savefig(saveFigPath+'OF_amp_fit_energy_fake.png')
     plt.show()
        
-    return energy_per_amp59
+    return popt, 1/energy_per_amp59
 
 
 
@@ -1001,8 +999,10 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     plt.scatter(x,y)
     plt.errorbar(x,y, yerr=yerr, linestyle = ' ')
     plt.plot(x_fit, y_fit, label = 'y = $ax+bx^c$')
-    plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', label = 'linear calibration from Al fluorescence')
+    plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', c= 'g', label = 'linear calibration from Al fluorescence')
     plt.plot(x_fit,x_fit*ypeaks[-2]/xenergies[-2],linestyle = '--', label = 'linear calibration from Kα')
+    plt.fill_between(x_fit, x_fit*(ypeaks[0]-errors[0])/xenergies[0], x_fit*(ypeaks[0]+errors[0])/xenergies[0] 
+                     ,color= 'g', alpha = .3)
     plt.ylabel('Calculated Integral Energy[eV]')
     plt.xlabel('True Energy [eV]')
     plt.title('Integrated Energy Saturation Correction')
