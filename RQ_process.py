@@ -932,12 +932,14 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     
     def saturation_func(x,a,b,c):
         return a*x+b*x**c
-
-
+    x = xenergies
+    y = ypeaks
+    yerr = errors
+    
     popt, cov = curve_fit(saturation_func, x, y, sigma = yerr, absolute_sigma=True, maxfev = 10000)
 
     x_fit = np.linspace(0, xenergies[-1], 100)
-    y_fit = func(x_fit, *popt )
+    y_fit = saturation_func(x_fit, *popt )
 
 
     plt.figure(figsize=(12,8))
@@ -957,7 +959,7 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     plt.ylim(0, 1100)
     
     DF['saturation_corr_int'] = DF.energy_integral1*ypeaks[0]/xenergies[0]
-
+    return ypeaks[0]/xenergies[0]
 
     
 def setplot_style():
