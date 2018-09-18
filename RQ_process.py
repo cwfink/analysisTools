@@ -652,7 +652,7 @@ def hist_data(arr,xrange = None, bins = 'sqrt'):
     x = (bins[1:]+bins[:-1])/2
     return x, hist, bins
 
-def find_peak(arr ,xrange = None, noiserange = None):
+def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     """
     Function to fit normal distribution to peak in spectrum. 
     
@@ -666,53 +666,63 @@ def find_peak(arr ,xrange = None, noiserange = None):
             nested 2-tuple. should contain the range before 
             and after the peak to be used for subtracting the 
             background
+        lgcplotorig: bool, optional
+            If True, the original spectrum will be plotted as well 
+            as the background subtracted spectrum
     Returns
     -------
-        mu: float
-            The first moment of the fitted distribution
-        sigma: float
-            The second moment of the fitted distribution
-        N: int
-            The hight of the peak
+        fitparams: tuple
+            The best fit parameters of the fit; A, mu, sigma
             
     """
     
 
     x,y, bins = hist_data(arr,  xrange)
     
-    if xrange is not None:
-        cut = (arr < xrange[1]) & (arr > xrange[0])
-        arr = arr[cut]
+   
     
     if noiserange is not None:
         clowl = noiserange[0][0]
         clowh = noiserange[0][1]
-        
-        indlowl = (np.abs(x - clowl)).argmin()
-        indlowh = (np.abs(x - clowh)).argmin()
-        
         chighl = noiserange[1][0]
-        chighh = noiserange[1][1]
-        
+        chighh = noiserange[1][1]       
+        indlowl = (np.abs(x - clowl)).argmin()
+        indlowh = (np.abs(x - clowh)).argmin() 
         indhighl = (np.abs(x - chighl)).argmin()
         indhighh = (np.abs(x - chighh)).argmin()
-        
         background = np.mean(np.stack((y[indlowl:indlowh],y[indhighl:indhighh])))
+        y_noback = y - background
+        
+
     
-    fit = stats.norm.fit(arr)
-    plt.figure(figsize=(9,6))
-    sns.distplot(arr, kde=False, fit = stats.norm, norm_hist=False
-                 , hist_kws = {'histtype': 'step','linewidth':3})
-    plt.plot([],[], linestyle = ' ', label = f' μ = {fit[0]:.2f}')
-    plt.plot([],[], linestyle = ' ', label = f' σ = {fit[1]:.2f}')
-    plt.plot([],[], linestyle = ' ', label = f' N = {max(y):.2f}')
     if noiserange is not None:
-        plt.axhline(background)
+        y_to_fit = y_noback
+    else:
+        y_to_fit = y
+        
+    A0 = np.max(y_to_fit)
+    mu0 = x[np.argmax(y_to_fit)]
+    sig0 = np.abs(mu0 - x[np.abs(y_to_fit - np.max(y_to_fit)/2).argmin()])
+    p0 = (A0, mu0, sig0)
+    print(p0)
+    fitparams = curve_fit(norm, x, y_to_fit, p0)[0]
+    x_fit = np.linspace(xrange[0], xrange[-1], 250)
+    
+    plt.figure(figsize=(9,6))
+    plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2f}')
+    plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2f}')
+    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f}')
+    if lgcplotorig:
+        plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='original data', alpha = .3)
+        plt.axhline(background, label = 'average background rate', linestyle = '--', alpha = .3)
+    if noiserange is not None:
+        plt.hist(x, bins = bins, weights = y_noback, histtype = 'step', linewidth = 1, label ='background subtracted data')
+        
+    plt.plot(x_fit, norm(x_fit, *fitparams))
     plt.legend()
     plt.grid(True, linestyle = 'dashed')
-    return fit[0], fit [1], max(y)
-
-
+    
+    return fitparams
 
 def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     x, hist,bins = get_hist_data(DF,cut, var)
