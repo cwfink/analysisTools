@@ -108,14 +108,13 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     if type(seriesnums) is not pd.core.series.Series:
         seriesnums = pd.Series(data=seriesnums)
         
-    if cut is not None:
+    if cut is None:
         cut = np.ones(len(evtnums), dtype=bool)
         
     inds = np.random.choice(np.flatnonzero(cut), size=ntraces, replace=False)
         
     crand = np.zeros(len(evtnums), dtype=bool)
-    for ind in inds:
-        crand[ind] = True
+    crand[inds] = True
     
     arrs = list()
     for snum in seriesnums[crand].unique():
