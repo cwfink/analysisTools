@@ -239,12 +239,12 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     
 
 def process_RQ(file, params):
-    chan, det, convtoamps, template, psd, fs ,time, ioffset = params
+    chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload = params
     traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
     columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
                'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1', 
               'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
-              'seriesNumber', 'chi2_timedomain']
+              'seriesNumber', 'chi2_timedomain', 'ofAmps_tdelay_outside','tdelay_outside','chi2_tdelay_outside']
     
               #,'A_nonlin' , 'taurise', 'taufall', 't0nonlin', 'chi2nonlin','A_nonlin_err' , 'taurise_err', 'taufall_err', 
               # 't0nonlin_err', 'Amuon' , 'taumuon', 'Amuon_err' , 'taumuon_err']
@@ -259,31 +259,35 @@ def process_RQ(file, params):
     
 
     for ii, trace in enumerate(traces):
-        baseline = np.mean(np.hstack((trace[:16000], trace[20000:])))
+        baseline = np.mean(np.hstack((trace[:indbasepre], trace[indbasepost:])))
         trace_bsSub = trace - baseline
-        traceFilt = lowpassfilter(trace, cut_off_freq=50e3)
-        traceFilt_bsSub = lowpassfilter(trace_bsSub, cut_off_freq=50e3)
-        powertrace = convert_to_power(trace, I_offset=ioffset,I_bias = -97e-6,Rsh=5e-3, Rl=13.15e-3)
-        energy_integral1 = integral_Energy_caleb(powertrace, time)
+        #traceFilt = lowpassfilter(trace, cut_off_freq=50e3)
+        #traceFilt_bsSub = lowpassfilter(trace_bsSub, cut_off_freq=50e3)
+        powertrace = convert_to_power(trace, I_offset=ioffset,I_bias = qetbias,Rsh=5e-3, Rl=rload)
+        energy_integral1 = integral_Energy_caleb(powertrace, time, indbasepre, indbasepost)
         
         
 
-        minval = np.min(trace)
-        maxval = np.max(trace)
-        minFilt = np.min(traceFilt)
-        maxFilt = np.max(traceFilt)
+        #minval = np.min(trace)
+        #maxval = np.max(trace)
+        #minFilt = np.min(traceFilt)
+        #maxFilt = np.max(traceFilt)
 
         amp_td, t0_td, chi2_td = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80)
+        amp_td_nocon, t0_td_nocon, chi2_td_nocon = ofamp(trace,template, psd,fs, lgcsigma = False)
+        amp, _, chi2 = ofamp(trace,template, psd,fs, withdelay=False, lgcsigma = False)
+        amp_td_out, t0_td_out, chi2_td_out = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80,\
+                                                   lgcoutsidewindow = True)
+        
         
         chi2_1000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=1000)
         chi2_5000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=5000)
         chi2_10000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=10000)
         chi2_50000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=50000)
         
-        amp_td_nocon, t0_td_nocon, chi2_td_nocon = ofamp(trace,template, psd,fs, lgcsigma = False, nconstrain = 10000)
-        amp, _, chi2 = ofamp(trace,template, psd,fs, withdelay=False, lgcsigma = False)
+
         
-        chi2_timedomain = td_chi2(trace, template, amp_td, t0_td, fs, baseline=np.mean(trace[:16000]))
+        chi2_timedomain = td_chi2(trace, template, amp_td, t0_td, fs, baseline=np.mean(trace[:indbasepre]))
         
         #nonlinof = OFnonlin(psd = psd, fs = fs, template=template)
         #fitparams,errors_nonlin,_,chi2nonlin = nonlinof.fit_falltimes(trace_bsSub, lgcdouble = True,
@@ -299,10 +303,10 @@ def process_RQ(file, params):
         
         
 
-        temp_data['baseline_pre'].append(np.mean(trace[:16000]))
-        temp_data['baseline_post'].append(np.mean(trace[20000:]))
+        temp_data['baseline_pre'].append(np.mean(trace[:indbasepre]))
+        temp_data['baseline_post'].append(np.mean(trace[indbasepost:]))
         
-        temp_data['slope'].append(np.mean(trace[:16000]) - np.mean(trace[int(trace.shape[0]/10*9):]))
+        temp_data['slope'].append(np.mean(trace[:indbasepre]) - np.mean(trace[indbasepost:]))
 
         temp_data['eventNumber'].append(eventNumber[ii])
         temp_data['eventTime'].append(eventTime[ii])
@@ -340,6 +344,9 @@ def process_RQ(file, params):
         temp_data['ofAmps_tdelay_nocon'].append(amp_td_nocon)
         temp_data['tdelay_nocon'].append(t0_td_nocon)
         temp_data['chi2_tdelay_nocon'].append(chi2_td_nocon)
+        temp_data['ofAmps_tdelay_outside'].append(amp_td_out)
+        temp_data['tdelay_outside'].append(t0_td_out)
+        temp_data['chi2_tdelay_outside'].append(chi2_td_out)
         
         temp_data['triggerType'].append(triggertype[ii])
         temp_data['triggeramp'].append(triggeramp[ii])
@@ -353,17 +360,18 @@ def process_RQ(file, params):
     return df_temp
 
 
-def multiprocess_RQ(filelist, chan, det, template, psd, fs, time, ioffset):
+def multiprocess_RQ(filelist, chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload ):
     
     path = filelist[0]
     pathgain = path.split('.')[0][:-19]
     convtoamps,_,_ = get_trace_gain(pathgain, det=det, chan=chan)
     nprocess = int(2)
     pool = multiprocessing.Pool(processes = nprocess)
-    results = pool.starmap(process_RQ, zip(filelist, repeat([chan, det, convtoamps, template, psd, fs,time,ioffset])))
+    results = pool.starmap(process_RQ, zip(filelist, repeat([chan, det, convtoamps, template, psd, \
+                                        fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload ])))
     pool.close()
     pool.join()
-    RQ_df = pd.concat([df for df in results])  
+    RQ_df = pd.concat([df for df in results], ignore_index = True)  
     return RQ_df
     #RQ_df.to_pickle('RQ_df_PTon_init_Template2.pkl')  
     
@@ -965,9 +973,9 @@ def convert_to_power(trace, I_offset,I_bias,Rsh, Rl):
     trace_P = trace_I0*V_bias - (Rl)*trace_I0**2
     return trace_P
 
-def integral_Energy_caleb(trace_power, time):
+def integral_Energy_caleb(trace_power, time, indbasepre, indbasepost):
 
-    baseline_p0 = np.mean(np.hstack((trace_power[:16000],trace_power[20000:])))
+    baseline_p0 = np.mean(np.hstack((trace_power[:indbasepre],trace_power[indbasepost:])))
     return  np.trapz(baseline_p0 - trace_power, x = time)/constants.e
 
 def td_chi2(signal, template, amp, tshift, fs, baseline=0):
@@ -1000,9 +1008,11 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     plt.errorbar(x,y, yerr=yerr, linestyle = ' ')
     plt.plot(x_fit, y_fit, label = 'y = $ax+bx^c$')
     plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', c= 'g', label = 'linear calibration from Al fluorescence')
-    plt.plot(x_fit,x_fit*ypeaks[-2]/xenergies[-2],linestyle = '--', label = 'linear calibration from Kα')
-    plt.fill_between(x_fit, x_fit*(ypeaks[0]-errors[0])/xenergies[0], x_fit*(ypeaks[0]+errors[0])/xenergies[0] 
+    plt.plot(x_fit,x_fit*ypeaks[-2]/xenergies[-2],linestyle = '--', c = 'r', label = 'linear calibration from Kα')
+    plt.fill_between(x_fit, x_fit*(ypeaks[0]-2*errors[0])/xenergies[0], x_fit*(ypeaks[0]+2*errors[0])/xenergies[0] 
                      ,color= 'g', alpha = .3)
+    plt.fill_between(x_fit, x_fit*(ypeaks[-2]-2*errors[-2])/xenergies[-2], x_fit*(ypeaks[-2]+2*errors[-2])/xenergies[-2] 
+                     ,color= 'r', alpha = .3)
     plt.ylabel('Calculated Integral Energy[eV]')
     plt.xlabel('True Energy [eV]')
     plt.title('Integrated Energy Saturation Correction')
