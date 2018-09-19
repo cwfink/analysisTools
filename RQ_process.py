@@ -830,8 +830,11 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
         return rf(x)*x
 
     p0 = np.polyfit(x, y, order)
-    popt_poly = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000)
-    z = popt_poly[0]
+    popt_poly, pcov = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000)
+    z = popt_poly
+    errors = np.sqrt(np.diag(pcov))
+    linear_err = errors[-1]
+    
     p = np.poly1d(np.concatenate((z,[0])))
     
     p_linear = np.poly1d(np.array([z[-1], 0]))
@@ -855,7 +858,7 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     DF['ofAmps0_poly'] = p(DF['ofAmps'])
     DF['ofAmpst_poly'] = p(DF['ofAmps_tdelay']) 
     DF['ofAmpst_poly_nocon'] = p(DF['ofAmps_tdelay_nocon']) 
-    return chi
+    return z[-1], linear_err
 
 
 def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On, Fast Template', yerr= 65, order = 5):
