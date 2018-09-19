@@ -833,16 +833,19 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     popt_poly = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000)
     z = popt_poly[0]
     p = np.poly1d(np.concatenate((z,[0])))
+    
+    p_linear = np.poly1d(np.array([z[-1], 0]))
     chi = (((y_full[clow] - p(x_full[clow]))/yerr)**2).sum()/(len(y_full[clow])-order)
 
     plt.figure(figsize=(9,6))
-    plt.plot(x_full, y_full, marker = '.', linestyle = ' ', label = 'Data passing cuts', ms = 3, alpha = .5)
+    plt.plot(x_full[~(cy & cx)], y_full[~(cy & cx)], marker = '.', linestyle = ' ', label = 'Data passing cuts', ms = 3, alpha = .5)
     plt.errorbar(x,y, marker = '.', linestyle = ' ', yerr = yerr*np.ones_like(y), label = 'Data used for Fit',
-                 elinewidth=0.3, alpha =1, ms = 5,zorder = 50)
+                 elinewidth=0.3, alpha =.5, ms = 5,zorder = 50)
     plt.ylim(0,9000)
     plt.xlim(0,x_full.max()*1.05)
     plt.grid(True)
-    plt.plot(x_fit,p(x_fit), zorder = 100)
+    plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
+    plt.plot(x_fit, p_linear(x_fit),zorder = 200, linestyle = '--', label = 'linear approximation')
     plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
     plt.legend()
     plt.ylabel('Integrated Energy [eV]')
