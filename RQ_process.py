@@ -718,9 +718,9 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     x_fit = np.linspace(xrange[0], xrange[-1], 250)
     
     plt.figure(figsize=(9,6))
-    plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2f} $\pm$ {errors[1]:.2f}')
-    plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2f} $\pm$ {errors[2]:.2f}')
-    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.2f}')
+    plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2f} $\pm$ {errors[1]:.3f}')
+    plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2f} $\pm$ {errors[2]:.3f}')
+    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
     if lgcplotorig:
         plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='original data', alpha = .3)
         plt.axhline(background, label = 'average background rate', linestyle = '--', alpha = .3)
@@ -735,18 +735,37 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
 
 def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     x, hist,bins = get_hist_data(DF,cut, var)
-    popt = curve_fit(double_gauss,x, hist, p0 )[0]
+    popt, pcov = curve_fit(double_gauss,x, hist, p0 )
+    error = np.sqrt(np.diag(pcov))
+    print(error)
     x_est = np.linspace(x.min(), x.max(), 1000)
     y_est = double_gauss(x_est,*popt)
-    peak59 = min([popt[2],popt[3]])
-    peak64 = max([popt[2],popt[3]])
+    
+    maxtemp = np.array([popt[2],popt[3]])
+    minint = np.argmin(maxtemp)
+    
+    if minint == 0:
+        amp59, peak59, sig59 = popt[0], popt[2], popt[4]
+        err59 = (error[0], error[2], error[4])
+        amp64, peak64, sig64 = popt[1], popt[3], popt[5]
+        err64 = (error[1], error[3], error[5])
+    else:
+        amp59, peak59, sig59 = popt[1], popt[3], popt[5]
+        err59 = (error[1], error[3], error[5])
+        amp64, peak64, sig64 = popt[0], popt[2], popt[4]
+        err64 = (error[0], error[2], error[4])
+    
+
+    
+    peak59_err = np.sqrt((sig59/np.sqrt(amp59))**2 + err59[1]**2) 
+    peak64_err = np.sqrt((sig64/np.sqrt(amp64))**2 + err64[1]**2) 
     
     plt.figure(figsize=(9,6))
     plt.hist(x, bins = bins, weights = hist, histtype = 'step', linewidth = 1, label ='data')
     plt.plot(x_est, y_est, 'g', label='Convoluted Gaussian Fit', alpha = .5)
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-    plt.text(peak59*1.02,max(hist)/2,f"μ: {peak59:.2e} \n σ: {popt[4]:.2e}",size = 12)
-    plt.text(peak64,max(hist)/3,f"μ: {peak64:.2e} \n σ: {popt[5]:.2e}",size = 12)
+    plt.text(peak59*1.02,max(hist)/2,f"μ: {peak59:.2e} $\pm$ {err59[1]:.2e} \n σ: {sig59:.2e}",size = 12)
+    plt.text(peak64,max(hist)/3,f"μ: {peak64:.2e} $\pm$ {err64[1]:.2e} \n σ: {sig64:.2e}",size = 12)
     plt.legend()
     plt.grid(True, linestyle = 'dashed')
     plt.xlabel(xlabel)
@@ -779,7 +798,7 @@ def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     #plt.savefig(saveFigPath+'OF_amp_fit_energy_fake.png')
     plt.show()
        
-    return popt, 1/energy_per_amp59
+    return peak59, peak64, peak59_err, peak64_err
 
 
 
