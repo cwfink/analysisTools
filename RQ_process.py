@@ -678,10 +678,15 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
             as the background subtracted spectrum
     Returns
     -------
+        peakloc: float
+            The mean of the distribution
+        peakerr: float
+            The full error in the location of the peak
         fitparams: tuple
             The best fit parameters of the fit; A, mu, sigma
         errors: ndarray
             The uncertainty in the fit parameters
+        
             
     """
     
@@ -731,13 +736,16 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     plt.legend()
     plt.grid(True, linestyle = 'dashed')
     
-    return fitparams, errors
+    peakloc = fitparams[1]
+    peakerr = np.sqrt((fitparams[2]/np.sqrt(fitparams[0]))**2 + errors[1]**2)
+    
+    return peakloc, peakerr, fitparams, errors
 
 def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     x, hist,bins = get_hist_data(DF,cut, var)
     popt, pcov = curve_fit(double_gauss,x, hist, p0 )
     error = np.sqrt(np.diag(pcov))
-    print(error)
+    #print(error)
     x_est = np.linspace(x.min(), x.max(), 1000)
     y_est = double_gauss(x_est,*popt)
     
@@ -829,7 +837,7 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
 
     plt.figure(figsize=(9,6))
     plt.plot(x_full, y_full, marker = '.', linestyle = ' ', label = 'Data passing cuts', ms = 3, alpha = .5)
-    plt.errorbar(x,y, marker = '.', linestyle = ' ', yerr = yerr*err_func(y), label = 'Data used for Fit',
+    plt.errorbar(x,y, marker = '.', linestyle = ' ', yerr = yerr*np.ones_like(y), label = 'Data used for Fit',
                  elinewidth=0.3, alpha =1, ms = 5,zorder = 50)
     plt.ylim(0,9000)
     plt.xlim(0,x_full.max()*1.05)
@@ -877,7 +885,7 @@ def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On,
 
     plt.figure(figsize=(9,6))
     plt.plot(x_full, y_full, marker = '.', linestyle = ' ', label = 'Data passing cuts', ms = 3, alpha = .5)
-    plt.errorbar(x,y, marker = '.', linestyle = ' ', yerr = yerr, label = 'Data used for Fit',
+    plt.errorbar(x,y, marker = '.', linestyle = ' ', yerr = yerr*np.ones_like(y), label = 'Data used for Fit',
                  elinewidth=0.3, alpha =1, ms = 5,zorder = 50)
                  #elinewidth=0.3,capsize=2, capthick=0.8, alpha =.5, ms = 3)
     #plt.plot(x_fit, y_fit, label = 'Linear Fit')
