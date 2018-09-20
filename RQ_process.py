@@ -62,7 +62,7 @@ def calcbaselinecut(arr, r0, i0, rload, dr = 0.1e-3, cut = None):
 
 
 def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], convtoamps=1, fs=625e3, 
-                  lgcplot=False, ntraces=1, nplot=20):
+                  lgcplot=False, ntraces=1, nplot=20, seed=None):
     """
     Function for loading (and plotting) random events from a datasets. Has functionality to pull 
     randomly from a specified cut. For use with scdmsPyTools.BatTools.IO.getRawEvents
@@ -91,6 +91,9 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
             Logical flag on whether or not to plot the pulled traces.
         nplot : int, optional
             If lgcplot is True, the number of traces to plot.
+        seed : int, optional
+            A value to pass to np.random.seed if the user wishes to use the same random seed
+            each time getrandevents is called.
         
     Returns
     -------
@@ -102,6 +105,9 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
             Boolean array that contains the cut on the loaded data.
     
     """
+    
+    if seed is not None:
+        np.random.seed(seed)
     
     if type(evtnums) is not pd.core.series.Series:
         evtnums = pd.Series(data=evtnums)
@@ -134,6 +140,9 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     x*=convtoamps
     
     if lgcplot:
+        
+        if nplot>ntraces:
+            nplot = ntraces
     
         colors = plt.cm.viridis(np.linspace(0, 1, num=nplot), alpha=0.5)
 
