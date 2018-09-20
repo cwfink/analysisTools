@@ -727,7 +727,11 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     mu0 = x[np.argmax(y_to_fit)]
     sig0 = np.abs(mu0 - x[np.abs(y_to_fit - np.max(y_to_fit)/2).argmin()])
     p0 = (A0, mu0, sig0)
-    fitparams, cov = curve_fit(norm, x, y_to_fit, p0)
+    #y_to_fit[y_to_fit < 0] = 0
+    y_to_fit = np.abs(y_to_fit)
+    yerr = np.sqrt(y_to_fit)
+    yerr[yerr <= 0 ] = 1
+    fitparams, cov = curve_fit(norm, x, y_to_fit, p0, sigma = yerr,absolute_sigma = True)
     errors = np.sqrt(np.diag(cov))
     x_fit = np.linspace(xrange[0], xrange[-1], 250)
     
@@ -752,7 +756,9 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
 
 def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     x, hist,bins = get_hist_data(DF,cut, var)
-    popt, pcov = curve_fit(double_gauss,x, hist, p0 )
+    yerr = np.sqrt(hist)
+    yerr[yerr <= 0 ] = 1
+    popt, pcov = curve_fit(double_gauss,x, hist, p0, sigma = yerr, absolute_sigma = True )
     error = np.sqrt(np.diag(pcov))
     #print(error)
     x_est = np.linspace(x.min(), x.max(), 1000)
@@ -839,7 +845,8 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
         return rf(x)*x
 
     p0 = np.polyfit(x, y, order)
-    popt_poly, pcov = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000)
+    popt_poly, pcov = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000, 
+                                absolute_sigma = True)
     z = popt_poly
     errors = np.sqrt(np.diag(pcov))
     linear_err = errors[-1]
@@ -937,14 +944,35 @@ def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0
     plt.figure(figsize=(9,6))
     sns.distplot(DF[cut][var]*scalefactor, kde=False, fit = stats.norm, norm_hist=False
                  , hist_kws = {'histtype': 'step','linewidth':3})
-    plt.plot([],[], linestyle = ' ', label = f'Baseline Fit: σ = {fit[1]*scalefactor:.2f} eV')
-    #plt.plot([],[], linestyle = ' ', label = f'OF Estimate: σ = {sigma:.2f} eV')
+    plt.plot([],[], linestyle = ' ', label = f'Baseline Fit: σ = {fit[1]*scalefactor:.3e} eV')
+    plt.plot([],[], linestyle = ' ', label = f'OF Estimate: σ = {sigma:.3e} eV')
     plt.legend()
     plt.grid(True, linestyle = 'dashed')
     plt.xlabel('Energy [eV]')
     plt.ylabel('Normalized PDF')
     plt.title(f'PD2 Baseline Energy Resolution')
     plt.xlim(-20,20)
+    
+    
+    y_to_fit = y  
+    A0 = np.max(y_to_fit)
+    mu0 = x[np.argmax(y_to_fit)]
+    sig0 = np.abs(mu0 - x[np.abs(y_to_fit - np.max(y_to_fit)/2).argmin()])
+    p0 = (A0, mu0, sig0)
+    fitparams, cov = curve_fit(norm, x, y_to_fit, p0, absolute_sigma = True)
+    errors = np.sqrt(np.diag(cov))
+    x_fit = np.linspace(x[0], x[-1], 250)
+    plt.figure(figsize=(9,6))
+    plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2e} $\pm$ {errors[1]:.3e}')
+    plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2e} $\pm$ {errors[2]:.3e}')
+    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
+
+    plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='noise data', alpha = .3)
+   
+    plt.plot(x_fit, norm(x_fit, *fitparams))
+    plt.legend()
+    plt.grid(True, linestyle = 'dashed')
+    
     
     #plt.savefig('baseline_res_Amps.png')
     
@@ -1064,8 +1092,14 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     plt.xlim(0, 6800)
     plt.ylim(0, 1100)
     
-    DF['saturation_corr_int'] = DF.energy_integral1*ypeaks[0]/xenergies[0]
-    return ypeaks[0]/xenergies[0]
+    slope = ypeaks[0]/xenergies[0]
+    
+    DF['saturation_corr_int'] = DF.energy_integral1*slope
+    DF['dEdI'] = 1/slope
+    DF['dEdI_err'] = np.sqrt((xenergies[0]/((ypeaks[0])**2)*yerr[0])**2 + (.5/ypeaks[0])**2)
+    
+    
+    return slope
 
     
 def setplot_style():
