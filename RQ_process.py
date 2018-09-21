@@ -959,7 +959,10 @@ def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0
     mu0 = x[np.argmax(y_to_fit)]
     sig0 = np.abs(mu0 - x[np.abs(y_to_fit - np.max(y_to_fit)/2).argmin()])
     p0 = (A0, mu0, sig0)
-    fitparams, cov = curve_fit(norm, x, y_to_fit, p0, absolute_sigma = True)
+    y_errs = y_to_fit#
+    y_errs[y_errs <= 0] = 1
+    y_errs = np.sqrt(y_errs)
+    fitparams, cov = curve_fit(norm, x, y_to_fit, p0, sigma = y_errs, absolute_sigma = True)
     errors = np.sqrt(np.diag(cov))
     x_fit = np.linspace(x[0], x[-1], 250)
     plt.figure(figsize=(9,6))
