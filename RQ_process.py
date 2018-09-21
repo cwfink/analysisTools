@@ -840,7 +840,7 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     clow = y_full < clowenergy
     x = x_full[cy & cx]
     y = y_full[cy & cx]
-
+    print(f'{(cy & cx).sum()} pass cut')
     x_fit = np.linspace(0,x.max(),100)
 
     def poly(x, *params):
@@ -877,7 +877,7 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     DF['ofAmps0_poly'] = p(DF['ofAmps'])
     DF['ofAmpst_poly'] = p(DF['ofAmps_tdelay']) 
     DF['ofAmpst_poly_nocon'] = p(DF['ofAmps_tdelay_nocon']) 
-    return z[-1], linear_err
+    return z[-1], linear_err, (cx & cy)
 
 
 def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On, Fast Template', yerr= 65, order = 5):
