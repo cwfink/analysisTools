@@ -837,6 +837,8 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
 
     cy = y_full < clineary
     cx = x_full < clinearx
+    
+    creturn = (DF[xvar].values < clinearx) & (DF[yvar].values < clineary) & cut
     clow = y_full < clowenergy
     x = x_full[cy & cx]
     y = y_full[cy & cx]
@@ -868,6 +870,7 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     plt.grid(True)
     plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
     plt.plot(x_fit, p_linear(x_fit),zorder = 200, linestyle = '--', label = 'linear approximation')
+    
     plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
     plt.legend()
     plt.ylabel('Integrated Energy [eV]')
@@ -877,58 +880,53 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     DF['ofAmps0_poly'] = p(DF['ofAmps'])
     DF['ofAmpst_poly'] = p(DF['ofAmps_tdelay']) 
     DF['ofAmpst_poly_nocon'] = p(DF['ofAmps_tdelay_nocon']) 
-    return z[-1], linear_err, (cx & cy)
+    return z[-1], linear_err, creturn
 
 
 def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On, Fast Template', yerr= 65, order = 5):
 
     x_full = xarr
     y_full = yarr
-    def poly(x, *params):
-        rf = np.poly1d(params)
-        return rf(x)*x
-    cy = y_full < clineary
-    cx = x_full < clinearx
-    clow = y_full < clowenergy
-    x = x_full[cy & cx]
-    y = y_full[cy & cx]
-    x_fit = np.linspace(0,x.max(),100)
-
+    x = x_full
+    y = y_full
+    x_fit = np.linspace(0, max(x), 50)
     def poly(x, *params):
         rf = np.poly1d(params)
         return rf(x)*x
 
     p0 = np.polyfit(x, y, order)
-    popt_poly = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000)
-    z = popt_poly[0]
+    popt_poly, pcov = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000, 
+                                absolute_sigma = True)
+    z = popt_poly
+    errors = np.sqrt(np.diag(pcov))
+    linear_err = errors[-1]
     
     p = np.poly1d(np.concatenate((z,[0])))
-
     
-    chi = (((y_full[clow] - p(x_full[clow]))/yerr)**2).sum()/(len(y_full[clow])-order)
-    
+    p_linear = np.poly1d(np.array([z[-1], 0]))
+    #chi = (((y_full[clow] - p(x_full[clow]))/yerr)**2).sum()/(len(y_full[clow])-order)
 
     plt.figure(figsize=(9,6))
-    plt.plot(x_full, y_full, marker = '.', linestyle = ' ', label = 'Data passing cuts', ms = 3, alpha = .5)
+    #plt.plot(x_full[~(cy & cx)], y_full[~(cy & cx)], marker = '.', linestyle = ' ', label = 'Data passing cuts', ms = 3, alpha = .5)
     plt.errorbar(x,y, marker = '.', linestyle = ' ', yerr = yerr*np.ones_like(y), label = 'Data used for Fit',
-                 elinewidth=0.3, alpha =1, ms = 5,zorder = 50)
-                 #elinewidth=0.3,capsize=2, capthick=0.8, alpha =.5, ms = 3)
-    #plt.plot(x_fit, y_fit, label = 'Linear Fit')
+                 elinewidth=0.3, alpha =.5, ms = 5,zorder = 50)
     plt.ylim(0,9000)
     plt.xlim(0,x_full.max()*1.05)
     plt.grid(True)
-    #plt.text(500,y_full.max()/1.5, f"y = {slope:.3e} [A/eV]x",size =12)
-    plt.plot(x_fit,p(x_fit), zorder = 100)
+    plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
+    plt.plot(x_fit, p_linear(x_fit),zorder = 200, linestyle = '--', label = 'linear approximation')
+    
     plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
     plt.legend()
     plt.ylabel('Integrated Energy [eV]')
     plt.xlabel('OF Amplitude [A]')
     plt.title('OF Amplitude vs Integral Energy Calibration:  \n' + title)
 
-    DF['ofAmps0_poly'] = p(DF['ofAmps'])
-    DF['ofAmpst_poly'] = p(DF['ofAmps_tdelay']) 
-    DF['ofAmpst_poly_nocon'] = p(DF['ofAmps_tdelay_nocon']) 
-    return chi
+    #DF['ofAmps0_poly'] = p(DF['ofAmps'])
+    #DF['ofAmpst_poly'] = p(DF['ofAmps_tdelay']) 
+    #DF['ofAmpst_poly_nocon'] = p(DF['ofAmps_tdelay_nocon']) 
+    return z[-1], linear_err
+
     
 def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0_energy', title = 'PT Off'):
 
