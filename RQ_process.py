@@ -117,6 +117,9 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     if cut is None:
         cut = np.ones(len(evtnums), dtype=bool)
         
+    if ntraces > np.sum(cut):
+        ntraces = np.sum(cut)
+        
     inds = np.random.choice(np.flatnonzero(cut), size=ntraces, replace=False)
         
     crand = np.zeros(len(evtnums), dtype=bool)
