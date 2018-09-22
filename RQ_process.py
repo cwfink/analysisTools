@@ -5,7 +5,7 @@ sys.path.append('/scratch/cwfink/repositories/scdmsPyTools/build/lib/scdmsPyTool
 from scdmsPyTools.BatTools.IO import *
 import multiprocessing
 from itertools import repeat
-from qetpy.fitting import ofamp, OFnonlin, MuonTailFit, chi2lowfreq
+from qetpy.fitting import ofamp, OFnonlin, MuonTailFit, chi2lowfreq, ofamp_pileup
 from qetpy.utils import calc_psd, calc_offset, lowpassfilter, removeoutliers
 import matplotlib.pyplot as plt
 
@@ -256,7 +256,8 @@ def process_RQ(file, params):
     columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
                'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1', 
               'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
-              'seriesNumber', 'chi2_timedomain', 'ofAmps_tdelay_outside','tdelay_outside','chi2_tdelay_outside']
+              'seriesNumber', 'chi2_timedomain', 'ofAmps_tdelay_outside','tdelay_outside','chi2_tdelay_outside',
+              'ofAmps_pileup', 'tdelay_pileup','chi2_pileup']
     
               #,'A_nonlin' , 'taurise', 'taufall', 't0nonlin', 'chi2nonlin','A_nonlin_err' , 'taurise_err', 'taufall_err', 
               # 't0nonlin_err', 'Amuon' , 'taumuon', 'Amuon_err' , 'taumuon_err']
@@ -286,6 +287,7 @@ def process_RQ(file, params):
         #maxFilt = np.max(traceFilt)
 
         amp_td, t0_td, chi2_td = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80)
+        amp_pileup, t0_pileup, chi2_pileup = ofamp_pileup(trace, template, psd, fs, amp_td, t0_td)
         amp_td_nocon, t0_td_nocon, chi2_td_nocon = ofamp(trace,template, psd,fs, lgcsigma = False)
         amp, _, chi2 = ofamp(trace,template, psd,fs, withdelay=False, lgcsigma = False)
         amp_td_out, t0_td_out, chi2_td_out = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80,\
@@ -334,6 +336,10 @@ def process_RQ(file, params):
         temp_data['ofAmps_tdelay'].append(amp_td)
         temp_data['tdelay'].append(t0_td)
         temp_data['chi2_tdelay'].append(chi2_td)
+        
+        temp_data['ofAmps_pileup'].append(amp_pileup)
+        temp_date['tdelay_pileup'].append(t0_pileup)
+        temp_data['chi2_pileup'].append(chi2_pileup)
         
         temp_data['chi2_timedomain'].append(chi2_timedomain)
         
