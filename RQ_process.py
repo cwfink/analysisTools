@@ -343,7 +343,7 @@ def process_RQ(file, params):
         temp_data['chi2_tdelay'].append(chi2_td)
         
         temp_data['ofAmps_pileup'].append(amp_pileup)
-        temp_date['tdelay_pileup'].append(t0_pileup)
+        temp_data['tdelay_pileup'].append(t0_pileup)
         temp_data['chi2_pileup'].append(chi2_pileup)
         
         temp_data['chi2_timedomain'].append(chi2_timedomain)
