@@ -251,10 +251,11 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     
 
 def process_RQ(file, params):
-    chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload = params
+    chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, ioffset2  = params
     traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
     columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
                'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1', 
+               'energy_integral2',
               'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
               'seriesNumber', 'chi2_timedomain', 'ofAmps_tdelay_outside','tdelay_outside','chi2_tdelay_outside',
               'ofAmps_pileup', 'tdelay_pileup','chi2_pileup']
@@ -277,7 +278,10 @@ def process_RQ(file, params):
         #traceFilt = lowpassfilter(trace, cut_off_freq=50e3)
         #traceFilt_bsSub = lowpassfilter(trace_bsSub, cut_off_freq=50e3)
         powertrace = convert_to_power(trace, I_offset=ioffset,I_bias = qetbias,Rsh=5e-3, Rl=rload)
+        powertrace2 = convert_to_power(trace, I_offset=ioffset2,I_bias = qetbias,Rsh=5e-3, Rl=rload)
+        
         energy_integral1 = integral_Energy_caleb(powertrace, time, indbasepre, indbasepost)
+        energy_integral2 = integral_Energy_caleb(powertrace2, time, indbasepre, indbasepost)
         
         
 
@@ -330,6 +334,7 @@ def process_RQ(file, params):
         temp_data['int_bsSub'].append(np.trapz(trace_bsSub, time))
         
         temp_data['energy_integral1'].append(energy_integral1)
+        temp_data['energy_integral2'].append(energy_integral1)
 
         temp_data['ofAmps'].append(amp)
         temp_data['chi2'].append(chi2)
@@ -378,7 +383,7 @@ def process_RQ(file, params):
     return df_temp
 
 
-def multiprocess_RQ(filelist, chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload ):
+def multiprocess_RQ(filelist, chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload,ioffset2):
     
     path = filelist[0]
     pathgain = path.split('.')[0][:-19]
@@ -386,7 +391,7 @@ def multiprocess_RQ(filelist, chan, det, convtoamps, template, psd, fs ,time, io
     nprocess = int(2)
     pool = multiprocessing.Pool(processes = nprocess)
     results = pool.starmap(process_RQ, zip(filelist, repeat([chan, det, convtoamps, template, psd, \
-                                        fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload ])))
+                                        fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, ioffset2 ])))
     pool.close()
     pool.join()
     RQ_df = pd.concat([df for df in results], ignore_index = True)  
