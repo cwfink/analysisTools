@@ -399,7 +399,7 @@ def multiprocess_RQ(filelist, chan, det, convtoamps, template, psd, fs ,time, io
     #RQ_df.to_pickle('RQ_df_PTon_init_Template2.pkl')  
     
 def histRQ(arr, nbins = None, xlims = None, cutold = None,cutnew = None, lgcrawdata = True, 
-    lgceff = True, labeldict = None):
+    lgceff = True, lgclegend = True, labeldict = None):
     """
     Function to plot histogram of RQ data. The bins are set such that all bins have the same size
     as the raw data
@@ -422,6 +422,8 @@ def histRQ(arr, nbins = None, xlims = None, cutold = None,cutnew = None, lgcrawd
             if True, the cuff efficiencies are printed in the legend. The total eff will be the sum of all the 
             cuts divided by the length of the data. the current cut eff will be the sum of the current cut 
             divided by the sum of all the previous cuts, if any
+        lgclegend: boolean, optional
+            If True, the legend is plotted
         labeldict: dictionary, optional
             dictionary to overwrite the labels of the plot. defaults are : 
                 labels = {'title' : 'Histogram', 'xlabel' : 'variable', 'ylabel' : 'Count', 'cutnew' : 'current' 
@@ -497,7 +499,8 @@ def histRQ(arr, nbins = None, xlims = None, cutold = None,cutnew = None, lgcrawd
     #plt.plot([],[], linestyle = ' ', label = f'Efficiency of current cut: {cuteff:.3f}')
     if lgceff:
         ax.plot([],[], linestyle = ' ', label = f'Efficiency of total cut: {cutefftot:.3f}')
-    plt.legend()
+    if lgclegend:
+        plt.legend()
     return fig, ax
     
 
@@ -873,7 +876,7 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     chi = (((y_full[clow] - p(x_full[clow]))/yerr)**2).sum()/(len(y_full[clow])-order)
 
     plt.figure(figsize=(9,6))
-    plt.plot(x_full[~(cy & cx)], y_full[~(cy & cx)], marker = '.', linestyle = ' ', label = 'Data passing cuts', ms = 3, alpha = .5)
+    #plt.plot(x_full[~(cy & cx)], y_full[~(cy & cx)], marker = '.', linestyle = ' ', label = 'Data passing cuts', ms = 3, alpha = .5)
     plt.errorbar(x,y, marker = '.', linestyle = ' ', yerr = yerr*np.ones_like(y), label = 'Data used for Fit',
                  elinewidth=0.3, alpha =.5, ms = 5,zorder = 50)
     plt.ylim(0,9000)
@@ -964,6 +967,58 @@ def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0
     plt.ylabel('Normalized PDF')
     plt.title(f'PD2 Baseline Energy Resolution')
     plt.xlim(-20,20)
+    
+    
+    y_to_fit = y  
+    A0 = np.max(y_to_fit)
+    mu0 = x[np.argmax(y_to_fit)]
+    sig0 = np.abs(mu0 - x[np.abs(y_to_fit - np.max(y_to_fit)/2).argmin()])
+    p0 = (A0, mu0, sig0)
+    y_errs = y_to_fit#
+    y_errs[y_errs <= 0] = 1
+    y_errs = np.sqrt(y_errs)
+    fitparams, cov = curve_fit(norm, x, y_to_fit, p0, sigma = y_errs, absolute_sigma = True)
+    errors = np.sqrt(np.diag(cov))
+    x_fit = np.linspace(x[0], x[-1], 250)
+    plt.figure(figsize=(9,6))
+    plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2e} $\pm$ {errors[1]:.3e}')
+    plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2e} $\pm$ {errors[2]:.3e}')
+    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
+
+    plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='noise data', alpha = .3)
+   
+    plt.plot(x_fit, norm(x_fit, *fitparams))
+    plt.legend()
+    plt.grid(True, linestyle = 'dashed')
+    
+    
+    #plt.savefig('baseline_res_Amps.png')
+    
+def baseline_res_v2(arr,  template, psd, scalefactor ,fs = 625e3,  title = 'PT Off'):
+
+    nbins = len(template)
+    timelen = nbins/fs
+    df = fs/nbins
+    s = np.fft.fft(template)/nbins
+    psd[0]=np.inf
+    phi = s.conjugate()/psd
+    sigma = (1/(np.dot(phi, s).real*timelen)**0.5)*scalefactor
+
+    x,y, bins = hist_data(arr,  xrange = None)
+    x_energy = x
+
+    fit = stats.norm.fit(arr)
+    plt.figure(figsize=(9,6))
+    sns.distplot(arr*scalefactor, kde=False, fit = stats.norm, norm_hist=False
+                 , hist_kws = {'histtype': 'step','linewidth':3})
+    plt.plot([],[], linestyle = ' ', label = f'Baseline Fit: σ = {fit[1]*scalefactor:.3e} ')
+    plt.plot([],[], linestyle = ' ', label = f'OF Estimate: σ = {sigma:.3e} ')
+    plt.legend()
+    plt.grid(True, linestyle = 'dashed')
+    plt.xlabel('Energy [eV]')
+    plt.ylabel('Normalized PDF')
+    plt.title(f'PD2 Baseline Energy Resolution')
+    #plt.xlim(-20,20)
     
     
     y_to_fit = y  
