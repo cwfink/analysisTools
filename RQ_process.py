@@ -1132,6 +1132,24 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     
     def saturation_func(x,a,b,c):
         return a*x+b*x**c
+    
+    def prop_err(x,params,cov):
+        a,b,c = params
+        deriv = np.array([x, x**c, b*x**2*np.log(x)])
+        sig = np.sqrt(np.diag(cov))
+        sig_func = []
+        for ii in range(len(deriv)):
+            sig_func.append((deriv[ii]*sig[ii])**2)
+        
+        #for ii in range(len(deriv)):    
+        #    for jj in range(len(deriv)):
+        #        if jj != ii:
+        #            sig_func.append(np.abs(deriv[ii]*deriv[jj]*cov[ii,jj]))
+       
+        return np.sqrt(np.sum(np.array(sig_func), axis = 0))
+                    
+        
+    
     x = xenergies
     y = ypeaks
     yerr = errors
@@ -1147,6 +1165,7 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     plt.scatter(x,y)
     plt.errorbar(x,y, yerr=yerr, linestyle = ' ')
     plt.plot(x_fit, y_fit, label = 'y = $ax+bx^c$')
+    #plt.fill_between(x_fit[1:], y_fit[1:]-prop_err(x_fit[1:],popt,cov), y_fit[1:]+prop_err(x_fit[1:],popt,cov))
     plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', c= 'g', label = 'linear calibration from Al fluorescence')
     plt.plot(x_fit,x_fit*ypeaks[-2]/xenergies[-2],linestyle = '--', c = 'r', label = 'linear calibration from Kα')
     plt.fill_between(x_fit, x_fit*(ypeaks[0]-2*errors[0])/xenergies[0], x_fit*(ypeaks[0]+2*errors[0])/xenergies[0] 
