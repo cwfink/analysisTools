@@ -883,7 +883,8 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     plt.xlim(0,x_full.max()*1.05)
     plt.grid(True)
     plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
-    plt.plot(x_fit, p_linear(x_fit),zorder = 200, linestyle = '--', label = 'linear approximation')
+    plt.plot(x_fit, p_linear(x_fit),zorder = 200, c = 'r', linestyle = '--', label = 'linear approximation (2σ bounds) ')
+    plt.fill_between(x_fit, x_fit*(z[-1] - 2*linear_err), x_fit*(z[-1] + 2*linear_err), color = 'r', alpha = .5)
     
     plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
     plt.legend()
@@ -942,7 +943,7 @@ def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On,
     return z[-1], linear_err
 
     
-def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0_energy', title = 'PT Off'):
+def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0_energy', title = 'PT Off', lgcplotparams = True):
 
     nbins = len(template)
     timelen = nbins/fs
@@ -969,7 +970,8 @@ def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0
     plt.xlim(-20,20)
     
     
-    y_to_fit = y  
+    y_to_fit = y
+    x = x*scalefactor
     A0 = np.max(y_to_fit)
     mu0 = x[np.argmax(y_to_fit)]
     sig0 = np.abs(mu0 - x[np.abs(y_to_fit - np.max(y_to_fit)/2).argmin()])
@@ -981,13 +983,18 @@ def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0
     errors = np.sqrt(np.diag(cov))
     x_fit = np.linspace(x[0], x[-1], 250)
     plt.figure(figsize=(9,6))
-    plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2e} $\pm$ {errors[1]:.3e}')
-    plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2e} $\pm$ {errors[2]:.3e}')
-    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
+    plt.hist(x, bins = bins*scalefactor, weights = y, histtype = 'step', linewidth = 1, label ='noise data', 
+             alpha = .8, color = 'g', zorder = 100)
+    if lgcplotparams:
+        plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2e} $\pm$ {errors[1]:.3e}')
+        plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.3e} $\pm$ {errors[2]:.3e}')
+        plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
+    else:
+        plt.plot([],[], linestyle = ' ', label = f'Baseline Resolution: σ = {fitparams[2]:.3f} [eV]')
 
-    plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='noise data', alpha = .3)
-   
-    plt.plot(x_fit, norm(x_fit, *fitparams))
+    
+    plt.title('Baseline Resolution')
+    plt.plot(x_fit, norm(x_fit, *fitparams), c = 'black')
     plt.legend()
     plt.grid(True, linestyle = 'dashed')
     
