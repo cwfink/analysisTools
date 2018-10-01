@@ -1145,8 +1145,15 @@ def td_chi2(signal, template, amp, tshift, fs, baseline=0):
     
 def correct_integral(xenergies, ypeaks, errors, DF):    
     
+    #def saturation_func(x,a,b,c):
+    #    return a*x+b*x**c
     def saturation_func(x,a,b,c):
-        return a*x+b*x**c
+        return a*(1-np.exp(-x/b-x**2/c))
+    
+    def saturation_func_bern(x,a,b):
+        #return a*(1-np.exp(-x/b-c*x**2))
+        return a*(1-np.exp(-x/b))
+
     
     def prop_err(x,params,cov):
         a,b,c = params
@@ -1163,24 +1170,27 @@ def correct_integral(xenergies, ypeaks, errors, DF):
        
         return np.sqrt(np.sum(np.array(sig_func), axis = 0))
                     
-        
+    p0 = (3.87396482e+03, 2.14653674e+04, 5000)
     
     x = xenergies
     y = ypeaks
     yerr = errors
     
-    popt, cov = curve_fit(saturation_func, x, y, sigma = yerr, absolute_sigma=True, maxfev = 10000)
+    #popt, cov = curve_fit(saturation_func, x, y, sigma = yerr, p0= p0, absolute_sigma=True, maxfev = 10000)
+    popt_bern, cov_bern = curve_fit(saturation_func_bern, x, y, sigma = yerr, p0 = p0[:-1], absolute_sigma=True, maxfev = 10000)
 
-    print(popt)
+    print(popt_bern)
     x_fit = np.linspace(0, xenergies[-1], 100)
-    y_fit = saturation_func(x_fit, *popt )
+    #y_fit = saturation_func(x_fit, *popt )
+    y_fit_bern = saturation_func_bern(x_fit, *popt_bern )
 
 
     plt.figure(figsize=(12,8))
     plt.grid(True, linestyle = 'dashed', label = 'Spectral Peaks')
     plt.scatter(x,y)
     plt.errorbar(x,y, yerr=yerr, linestyle = ' ')
-    plt.plot(x_fit, y_fit, label = 'y = $ax+bx^c$')
+    plt.plot(x_fit, y_fit_bern, label = r'$y = a(1-exp(x/b)$')
+    #plt.plot(x_fit, y_fit, label = r'$y = a(1-exp(x/b-x^2/c)$')
     #plt.fill_between(x_fit[1:], y_fit[1:]-prop_err(x_fit[1:],popt,cov), y_fit[1:]+prop_err(x_fit[1:],popt,cov))
     plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', c= 'g', label = 'linear calibration from Al fluorescence')
     plt.plot(x_fit,x_fit*ypeaks[-2]/xenergies[-2],linestyle = '--', c = 'r', label = 'linear calibration from Kα')
