@@ -667,6 +667,10 @@ def plotRQ(xvals, yvals, xlims = None, ylims = None, cutold = None, cutnew = Non
 def norm(x,amp, mean, sd):
     return amp*np.exp(-(x - mean)**2/(2*sd**2))
 
+def norm_background(x,amp, mean, sd, offset):
+    return amp*np.exp(-(x - mean)**2/(2*sd**2)) + offset
+
+
 def double_gauss(x, *p):
     a1, a2, m1, m2, sd1, sd2 = p
     y_fit = norm(x,a1, m1, sd1) + norm(x,a2, m2, sd2)
@@ -717,6 +721,8 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     """
     
     x,y, bins = hist_data(arr,  xrange)
+    
+    yerr = np.sqrt(y)
     if noiserange is not None:
         if noiserange[0][0] >= xrange[0]:
             clowl = noiserange[0][0]
@@ -736,19 +742,20 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
         y_noback = y - background
          
     if noiserange is not None:
-        y_to_fit = y_noback
+        #y_to_fit = y_noback
+        y_to_fit = y
     else:
         y_to_fit = y
         
     A0 = np.max(y_to_fit)
     mu0 = x[np.argmax(y_to_fit)]
     sig0 = np.abs(mu0 - x[np.abs(y_to_fit - np.max(y_to_fit)/2).argmin()])
-    p0 = (A0, mu0, sig0)
+    p0 = (A0, mu0, sig0, background)
     #y_to_fit[y_to_fit < 0] = 0
-    y_to_fit = np.abs(y_to_fit)
-    yerr = np.sqrt(y_to_fit)
-    yerr[yerr <= 0 ] = 1
-    fitparams, cov = curve_fit(norm, x, y_to_fit, p0, sigma = yerr,absolute_sigma = True)
+    #y_to_fit = np.abs(y_to_fit)
+    #yerr = np.sqrt(y_to_fit)
+    #yerr[yerr <= 0 ] = 1
+    fitparams, cov = curve_fit(norm_background, x, y_to_fit, p0, sigma = yerr,absolute_sigma = True)
     errors = np.sqrt(np.diag(cov))
     x_fit = np.linspace(xrange[0], xrange[-1], 250)
     
@@ -756,18 +763,19 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2f} $\pm$ {errors[1]:.3f}')
     plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2f} $\pm$ {errors[2]:.3f}')
     plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
+    plt.plot([],[], linestyle = ' ', label = f' Offset = {fitparams[3]:.2f} $\pm$ {errors[3]:.3f}')
     if lgcplotorig:
         plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='original data', alpha = .3)
         plt.axhline(background, label = 'average background rate', linestyle = '--', alpha = .3)
     if noiserange is not None:
         plt.hist(x, bins = bins, weights = y_noback, histtype = 'step', linewidth = 1, label ='background subtracted data')
         
-    plt.plot(x_fit, norm(x_fit, *fitparams))
+    plt.plot(x_fit, norm(x_fit, *fitparams[:-1]))
     plt.legend()
     plt.grid(True, linestyle = 'dashed')
     
     peakloc = fitparams[1]
-    peakerr = np.sqrt((fitparams[2]/np.sqrt(fitparams[0]))**2 + errors[1]**2)
+    peakerr = np.sqrt((fitparams[2]/np.sqrt(fitparams[0]))**2)# + errors[1]**2)
     
     return peakloc, peakerr, fitparams, errors
 
@@ -797,8 +805,8 @@ def scale_energy_spec(DF, cut, var, p0, title, xlabel):
     
 
     
-    peak59_err = np.sqrt((sig59/np.sqrt(amp59))**2 + err59[1]**2) 
-    peak64_err = np.sqrt((sig64/np.sqrt(amp64))**2 + err64[1]**2) 
+    peak59_err = np.sqrt((sig59/np.sqrt(amp59))**2)# + err59[1]**2) 
+    peak64_err = np.sqrt((sig64/np.sqrt(amp64))**2)# + err64[1]**2) 
     
     plt.figure(figsize=(9,6))
     plt.hist(x, bins = bins, weights = hist, histtype = 'step', linewidth = 1, label ='data')
@@ -988,7 +996,7 @@ def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0
     if lgcplotparams:
         plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2e} $\pm$ {errors[1]:.3e}')
         plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.3e} $\pm$ {errors[2]:.3e}')
-        plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
+        plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3e}')
     else:
         plt.plot([],[], linestyle = ' ', label = f'Baseline Resolution: σ = {fitparams[2]:.3f} [eV]')
 
@@ -1042,7 +1050,7 @@ def baseline_res_v2(arr,  template, psd, scalefactor ,fs = 625e3,  title = 'PT O
     plt.figure(figsize=(9,6))
     plt.plot([],[], linestyle = ' ', label = f' μ = {fitparams[1]:.2e} $\pm$ {errors[1]:.3e}')
     plt.plot([],[], linestyle = ' ', label = f' σ = {fitparams[2]:.2e} $\pm$ {errors[2]:.3e}')
-    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
+    plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3e}')
 
     plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='noise data', alpha = .3)
    
@@ -1104,7 +1112,7 @@ def get_offset(muon_mean,I_bias=-97e-6, Rsh = 5e-3,Rn = 88.9e-3,Rl=13.15e-3, nba
     muon_max = np.max(muon_mean)
     baseline = np.mean(muon_mean[:nbaseline])
     peak_loc = np.argmax(muon_mean)
-    muon_saturation = np.mean(muon_mean[peak_loc:peak_loc+200 ])
+    muon_saturation = np.mean(muon_mean[peak_loc:peak_loc+200])
     muon_deltaI =  muon_saturation - baseline
     V_bias = I_bias*Rsh
     I_n = V_bias/(Rl+Rn)
@@ -1163,6 +1171,7 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     
     popt, cov = curve_fit(saturation_func, x, y, sigma = yerr, absolute_sigma=True, maxfev = 10000)
 
+    print(popt)
     x_fit = np.linspace(0, xenergies[-1], 100)
     y_fit = saturation_func(x_fit, *popt )
 
