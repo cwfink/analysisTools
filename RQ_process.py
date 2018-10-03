@@ -886,11 +886,21 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     sat_errors = np.sqrt(np.diag(pcov_sat))
     
     linear_approx = -popt_sat[1]/popt_sat[0]
-    linear_approx_error = np.sqrt((-popt_sat[1]/popt_sat[0]**2*sat_errors[0])**2 + (sat_errors[1]/popt_sat[0])**2)
+    dfda = popt_sat[1]/popt_sat[0]**2
+    dfdb = -1/popt_sat[0]
+    def err_full(popt_sat, pcov_sat, x):
+        dfda_full = popt_sat[1]*x/(popt_sat[0]**2-popt_sat[0]*x)
+        dfdb_full = np.log(1-x/popt_sat[0])
+        return np.sqrt(dfda_full**2*pcov_sat[0,0] + dfdb_full**2*pcov_sat[1,1] + dfda_full*pcov_sat[0,1]*dfdb_full + dfdb_full*pcov_sat[1,0]*dfda_full)
+        
+        
+    
+    linear_approx_error = np.sqrt(dfda**2*pcov_sat[0,0] + dfdb**2*pcov_sat[1,1] + dfda*pcov_sat[0,1]*dfdb + dfdb*pcov_sat[1,0]*dfda)
+    #linear_approx_error = np.sqrt((-popt_sat[1]/popt_sat[0]**2*sat_errors[0])**2 + (sat_errors[1]/popt_sat[0])**2 - 2*popt_sat[1]/popt_sat[0]**3*pcov_sat[0,1])
     
     linear_err = errors[-1]
     
-    
+    print(pcov_sat)
     p = np.poly1d(np.concatenate((z,[0])))
     
     p_linear = np.poly1d(np.array([z[-1], 0]))
@@ -905,6 +915,10 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     plt.grid(True)
     #plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
     plt.plot(x_fit, saturated_func(x_fit, *popt_sat), color = 'k',  label = r'$y = b*ln(1-y/a)$')
+    #plt.fill_between(x_fit, saturated_func(x_fit, *popt_sat)+20*err_full(popt_sat, pcov_sat, x_fit), saturated_func(x_fit, *popt_sat)-20*err_full(popt_sat, pcov_sat, x_fit))
+    #print(saturated_func(1e-11, *popt_sat))
+    #print(err_full(popt_sat, pcov_sat, 1e-11))
+    #print(linear_approx_error*1e-11)
     #plt.plot(x_fit, p_linear(x_fit),zorder = 200, c = 'r', linestyle = '--', label = 'linear approximation (2σ bounds) ')
     #plt.fill_between(x_fit, x_fit*(z[-1] - 2*linear_err), x_fit*(z[-1] + 2*linear_err), color = 'r', alpha = .5)
     
