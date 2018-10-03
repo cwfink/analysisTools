@@ -948,14 +948,36 @@ def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On,
     def poly(x, *params):
         rf = np.poly1d(params)
         return rf(x)*x
+    def saturated_func(x,a,b):
+        return np.log(1-x/a)*b
 
     p0 = np.polyfit(x, y, order)
     popt_poly, pcov = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000, 
                                 absolute_sigma = True)
+    p0_sat = (1e-10,-200)
+    popt_sat, pcov_sat = curve_fit(saturated_func, xdata = x, ydata = y, sigma = yerr*np.ones_like(y),p0 = p0_sat, maxfev=100000, absolute_sigma = True)
+    print(popt_sat)
+
     z = popt_poly
     errors = np.sqrt(np.diag(pcov))
+    sat_errors = np.sqrt(np.diag(pcov_sat))
+    
+    linear_approx = -popt_sat[1]/popt_sat[0]
+    dfda = popt_sat[1]/popt_sat[0]**2
+    dfdb = -1/popt_sat[0]
+    def err_full(popt_sat, pcov_sat, x):
+        dfda_full = popt_sat[1]*x/(popt_sat[0]**2-popt_sat[0]*x)
+        dfdb_full = np.log(1-x/popt_sat[0])
+        return np.sqrt(dfda_full**2*pcov_sat[0,0] + dfdb_full**2*pcov_sat[1,1] + dfda_full*pcov_sat[0,1]*dfdb_full + dfdb_full*pcov_sat[1,0]*dfda_full)
+        
+        
+    
+    linear_approx_error = np.sqrt(dfda**2*pcov_sat[0,0] + dfdb**2*pcov_sat[1,1] + dfda*pcov_sat[0,1]*dfdb + dfdb*pcov_sat[1,0]*dfda)
+    #linear_approx_error = np.sqrt((-popt_sat[1]/popt_sat[0]**2*sat_errors[0])**2 + (sat_errors[1]/popt_sat[0])**2 - 2*popt_sat[1]/popt_sat[0]**3*pcov_sat[0,1])
+    
     linear_err = errors[-1]
     
+    print(pcov_sat)
     p = np.poly1d(np.concatenate((z,[0])))
     
     p_linear = np.poly1d(np.array([z[-1], 0]))
@@ -968,20 +990,18 @@ def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On,
     plt.ylim(0,9000)
     plt.xlim(0,x_full.max()*1.05)
     plt.grid(True)
-    plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
-    plt.plot(x_fit, p_linear(x_fit),zorder = 200, linestyle = '--', label = 'linear approximation')
+    #plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
+    plt.plot(x_fit, saturated_func(x_fit, *popt_sat), color = 'k',  label = r'$y = b*ln(1-y/a)$')
+    #plt.fill_between(x_fit, saturated_func(x_fit, *popt_sat)+20*err_full(popt_sat, pcov_sat, x_fit), saturated_func(x_fit, *popt_sat)-20*err_full(popt_sat, pcov_sat, x_fit))
+    #print(saturated_func(1e-11, *popt_sat))
+    #print(err_full(popt_sat, pcov_sat, 1e-11))
+    #print(linear_approx_error*1e-11)
+    #plt.plot(x_fit, p_linear(x_fit),zorder = 200, c = 'r', linestyle = '--', label = 'linear approximation (2σ bounds) ')
+    #plt.fill_between(x_fit, x_fit*(z[-1] - 2*linear_err), x_fit*(z[-1] + 2*linear_err), color = 'r', alpha = .5)
     
-    plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
-    plt.legend()
-    plt.ylabel('Integrated Energy [eV]')
-    plt.xlabel('OF Amplitude [A]')
-    plt.title('OF Amplitude vs Integral Energy Calibration:  \n' + title)
-
-    #DF['ofAmps0_poly'] = p(DF['ofAmps'])
-    #DF['ofAmpst_poly'] = p(DF['ofAmps_tdelay']) 
-    #DF['ofAmpst_poly_nocon'] = p(DF['ofAmps_tdelay_nocon']) 
-    #return z[-1], linear_err
-    return linear_approx, linear_approx
+    plt.plot(x_fit, linear_approx*x_fit,zorder = 200, c = 'r', linestyle = '--', label = 'linear approximation (2σ bounds) ')
+    plt.fill_between(x_fit, x_fit*(linear_approx - 2*linear_approx_error), x_fit*(linear_approx + 2*linear_approx_error), color = 'r', alpha = .5)
+    return linear_approx, linear_approx_error
 
     
 def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0_energy', title = 'PT Off', lgcplotparams = True):
