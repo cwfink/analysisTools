@@ -870,13 +870,26 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     def poly(x, *params):
         rf = np.poly1d(params)
         return rf(x)*x
+    
+    def saturated_func(x,a,b):
+        return np.log(1-x/a)*b
 
     p0 = np.polyfit(x, y, order)
     popt_poly, pcov = curve_fit(poly, xdata = x, ydata = y, sigma = yerr*np.ones_like(y), p0 = p0[:order], maxfev=100000, 
                                 absolute_sigma = True)
+    p0_sat = (1e-10,-200)
+    popt_sat, pcov_sat = curve_fit(saturated_func, xdata = x, ydata = y, sigma = yerr*np.ones_like(y),p0 = p0_sat, maxfev=100000, absolute_sigma = True)
+    print(popt_sat)
+
     z = popt_poly
     errors = np.sqrt(np.diag(pcov))
+    sat_errors = np.sqrt(np.diag(pcov_sat))
+    
+    linear_approx = -popt_sat[1]/popt_sat[0]
+    linear_approx_error = np.sqrt((-popt_sat[1]/popt_sat[0]**2*sat_errors[0])**2 + (sat_errors[1]/popt_sat[0])**2)
+    
     linear_err = errors[-1]
+    
     
     p = np.poly1d(np.concatenate((z,[0])))
     
@@ -890,9 +903,13 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     plt.ylim(0,9000)
     plt.xlim(0,x_full.max()*1.05)
     plt.grid(True)
-    plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
-    plt.plot(x_fit, p_linear(x_fit),zorder = 200, c = 'r', linestyle = '--', label = 'linear approximation (2σ bounds) ')
-    plt.fill_between(x_fit, x_fit*(z[-1] - 2*linear_err), x_fit*(z[-1] + 2*linear_err), color = 'r', alpha = .5)
+    #plt.plot(x_fit,p(x_fit), zorder = 100, label = 'polynomial fit')
+    plt.plot(x_fit, saturated_func(x_fit, *popt_sat), color = 'k',  label = r'$y = b*ln(1-y/a)$')
+    #plt.plot(x_fit, p_linear(x_fit),zorder = 200, c = 'r', linestyle = '--', label = 'linear approximation (2σ bounds) ')
+    #plt.fill_between(x_fit, x_fit*(z[-1] - 2*linear_err), x_fit*(z[-1] + 2*linear_err), color = 'r', alpha = .5)
+    
+    plt.plot(x_fit, linear_approx*x_fit,zorder = 200, c = 'r', linestyle = '--', label = 'linear approximation (2σ bounds) ')
+    plt.fill_between(x_fit, x_fit*(linear_approx - 2*linear_approx_error), x_fit*(linear_approx + 2*linear_approx_error), color = 'r', alpha = .5)
     
     plt.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
     plt.legend()
@@ -903,7 +920,8 @@ def amp_to_energy(DF,cut, clinearx, clineary, clowenergy, yvar = 'int_bsSub_shor
     DF['ofAmps0_poly'] = p(DF['ofAmps'])
     DF['ofAmpst_poly'] = p(DF['ofAmps_tdelay']) 
     DF['ofAmpst_poly_nocon'] = p(DF['ofAmps_tdelay_nocon']) 
-    return z[-1], linear_err, creturn
+    #return z[-1], linear_err, creturn
+    return linear_approx, linear_approx_error, creturn
 
 
 def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On, Fast Template', yerr= 65, order = 5):
@@ -948,7 +966,8 @@ def amp_to_energy_v2(xarr, yarr, clinearx, clineary, clowenergy, title = 'PT On,
     #DF['ofAmps0_poly'] = p(DF['ofAmps'])
     #DF['ofAmpst_poly'] = p(DF['ofAmps_tdelay']) 
     #DF['ofAmpst_poly_nocon'] = p(DF['ofAmps_tdelay_nocon']) 
-    return z[-1], linear_err
+    #return z[-1], linear_err
+    return linear_approx, linear_approx
 
     
 def baseline_res(DF, cut, template, psd, scalefactor ,fs = 625e3, var = 'ofAmps0_energy', title = 'PT Off', lgcplotparams = True):
@@ -1180,16 +1199,17 @@ def correct_integral(xenergies, ypeaks, errors, DF):
     popt_bern, cov_bern = curve_fit(saturation_func_bern, x, y, sigma = yerr, p0 = p0[:-1], absolute_sigma=True, maxfev = 10000)
 
     print(popt_bern)
+    print(f'a/b: {popt_bern[0]/popt_bern[1]}')
     x_fit = np.linspace(0, xenergies[-1], 100)
     #y_fit = saturation_func(x_fit, *popt )
     y_fit_bern = saturation_func_bern(x_fit, *popt_bern )
 
 
     plt.figure(figsize=(12,8))
-    plt.grid(True, linestyle = 'dashed', label = 'Spectral Peaks')
-    plt.scatter(x,y)
+    plt.grid(True, linestyle = 'dashed')
+    plt.scatter(x,y, marker = '1', label = 'Spectral Peaks' )
     plt.errorbar(x,y, yerr=yerr, linestyle = ' ')
-    plt.plot(x_fit, y_fit_bern, label = r'$y = a(1-exp(x/b)$')
+    plt.plot(x_fit, y_fit_bern, label = r'$y = a[1-exp(x/b)]$')
     #plt.plot(x_fit, y_fit, label = r'$y = a(1-exp(x/b-x^2/c)$')
     #plt.fill_between(x_fit[1:], y_fit[1:]-prop_err(x_fit[1:],popt,cov), y_fit[1:]+prop_err(x_fit[1:],popt,cov))
     plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', c= 'g', label = 'linear calibration from Al fluorescence')
