@@ -1184,6 +1184,8 @@ def convert_to_power(trace, I_offset,I_bias,Rsh, Rl):
 def integral_Energy_caleb(trace_power, time, indbasepre, indbasepost):
 
     baseline_p0 = np.mean(np.hstack((trace_power[:indbasepre],trace_power[indbasepost:])))
+    print(baseline_p0)
+    #baseline_p0 = np.mean(trace_power[:indbasepre])
     return  np.trapz(baseline_p0 - trace_power, x = time)/constants.e
 
 def td_chi2(signal, template, amp, tshift, fs, baseline=0):
