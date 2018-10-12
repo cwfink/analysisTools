@@ -574,7 +574,7 @@ def plotRQ(xvals, yvals, xlims = None, ylims = None, cutold = None, cutnew = Non
     limitcut = xlimitcut & ylimitcut
     
     if lgcrawdata and (cutnew is not None and cutold is not None):
-        ax.scatter(xvals[limitcut & ~cutold & ~cutnew], yvals[limitcut & ~cutold & ~cutnew], 
+        ax.scatter(xvals[limitcut & (~cutold | ~cutnew)], yvals[limitcut & (~cutold | ~cutnew)], 
                    label = 'Full Data', c = 'b', s = ms, alpha = a)
     elif lgcrawdata and cutnew is not None: 
         ax.scatter(xvals[limitcut & ~cutnew], yvals[limitcut & ~cutnew], 
