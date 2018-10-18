@@ -242,7 +242,7 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
         eventnumber.append(events['event'][ii]['EventNumber'])
         eventtime.append(events['event'][ii]['EventTime'])
         triggertype.append(events['event'][ii]['TriggerType'])
-        triggeramp.append(events['trigger'][ii]['TriggerAmplitude1'])
+        triggeramp.append(events['trigger'][ii]['TriggerAmplitude'])
     traces = events[det]['p'][:,0,:]*convtoamps
     
     return traces, np.array(eventnumber), np.array(eventtime), np.array(triggertype), np.array(triggeramp)
@@ -254,10 +254,8 @@ def process_RQ(file, params):
     chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, ioffset2  = params
     traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
     columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
-               'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1', 
-               'energy_integral2',
-              'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
-              'seriesNumber', 'chi2_timedomain', 'ofAmps_tdelay_outside','tdelay_outside','chi2_tdelay_outside',
+               'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1',              'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
+              'seriesNumber', 'chi2_timedomain',
               'ofAmps_pileup', 'tdelay_pileup','chi2_pileup']
     
               #,'A_nonlin' , 'taurise', 'taufall', 't0nonlin', 'chi2nonlin','A_nonlin_err' , 'taurise_err', 'taufall_err', 
@@ -275,13 +273,10 @@ def process_RQ(file, params):
     for ii, trace in enumerate(traces):
         baseline = np.mean(np.hstack((trace[:indbasepre], trace[indbasepost:])))
         trace_bsSub = trace - baseline
-        #traceFilt = lowpassfilter(trace, cut_off_freq=50e3)
-        #traceFilt_bsSub = lowpassfilter(trace_bsSub, cut_off_freq=50e3)
-        powertrace = convert_to_power(trace, I_offset=ioffset,I_bias = qetbias,Rsh=5e-3, Rl=rload)
-        powertrace2 = convert_to_power(trace, I_offset=ioffset2,I_bias = qetbias,Rsh=5e-3, Rl=rload)
+
         
-        energy_integral1 = integral_Energy_caleb(powertrace, time, indbasepre, indbasepost)
-        energy_integral2 = integral_Energy_caleb(powertrace2, time, indbasepre, indbasepost)
+        energy_integral1 = integral_Energy_caleb(trace, time, indbasepre, indbasepost, ioffset,qetbias,5e-3, rload)
+
         
         
 
@@ -291,11 +286,11 @@ def process_RQ(file, params):
         #maxFilt = np.max(traceFilt)
 
         amp_td, t0_td, chi2_td = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80)
-        amp_pileup, t0_pileup, chi2_pileup = ofamp_pileup(trace, template, psd, fs, amp_td, t0_td)
+        _, _, amp_pileup, t0_pileup, chi2_pileup = ofamp_pileup(trace, template, psd, fs, a1=amp_td, t1=t0_td, nconstrain1 = 80, nconstrain2 = 1000)
+
         amp_td_nocon, t0_td_nocon, chi2_td_nocon = ofamp(trace,template, psd,fs, lgcsigma = False)
         amp, _, chi2 = ofamp(trace,template, psd,fs, withdelay=False, lgcsigma = False)
-        amp_td_out, t0_td_out, chi2_td_out = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80,\
-                                                   lgcoutsidewindow = True)
+        
         
         
         chi2_1000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=1000)
@@ -334,7 +329,6 @@ def process_RQ(file, params):
         temp_data['int_bsSub'].append(np.trapz(trace_bsSub, time))
         
         temp_data['energy_integral1'].append(energy_integral1)
-        temp_data['energy_integral2'].append(energy_integral1)
 
         temp_data['ofAmps'].append(amp)
         temp_data['chi2'].append(chi2)
@@ -367,9 +361,9 @@ def process_RQ(file, params):
         temp_data['ofAmps_tdelay_nocon'].append(amp_td_nocon)
         temp_data['tdelay_nocon'].append(t0_td_nocon)
         temp_data['chi2_tdelay_nocon'].append(chi2_td_nocon)
-        temp_data['ofAmps_tdelay_outside'].append(amp_td_out)
-        temp_data['tdelay_outside'].append(t0_td_out)
-        temp_data['chi2_tdelay_outside'].append(chi2_td_out)
+        #temp_data['ofAmps_tdelay_outside'].append(amp_td_out)
+        #temp_data['tdelay_outside'].append(t0_td_out)
+        #temp_data['chi2_tdelay_outside'].append(chi2_td_out)
         
         temp_data['triggerType'].append(triggertype[ii])
         temp_data['triggeramp'].append(triggeramp[ii])
@@ -1178,11 +1172,11 @@ def convert_to_power(trace, I_offset,I_bias,Rsh, Rl):
     trace_P = trace_I0*V_bias - (Rl)*trace_I0**2
     return trace_P
 
-def integral_Energy_caleb(trace_power, time, indbasepre, indbasepost):
+def integral_Energy_caleb(trace, time, indbasepre, indbasepost, I_offset,I_bias,Rsh, Rl):
 
-    baseline_p0 = np.mean(np.hstack((trace_power[:indbasepre],trace_power[indbasepost:])))
-    print(baseline_p0)
-    #baseline_p0 = np.mean(trace_power[:indbasepre])
+    baseline = np.mean(np.hstack((trace[:indbasepre],trace[indbasepost:])))
+    baseline_p0 = convert_to_power(baseline, I_offset,I_bias,Rsh, Rl)
+    trace_power = convert_to_power(trace, I_offset,I_bias,Rsh, Rl)
     return  np.trapz(baseline_p0 - trace_power, x = time)/constants.e
 
 def td_chi2(signal, template, amp, tshift, fs, baseline=0):
@@ -1195,15 +1189,11 @@ def td_chi2(signal, template, amp, tshift, fs, baseline=0):
     
     
     
-def correct_integral(xenergies, ypeaks, errors, DF):    
+def correct_integral(xenergies, ypeaks, errors, DF, p0 = (3.87396482e+03, 2.14653674e+04)):    
     
-    #def saturation_func(x,a,b,c):
-    #    return a*x+b*x**c
-    def saturation_func(x,a,b,c):
-        return a*(1-np.exp(-x/b-x**2/c))
+
     
-    def saturation_func_bern(x,a,b):
-        #return a*(1-np.exp(-x/b-c*x**2))
+    def saturation_func(x,a,b):
         return a*(1-np.exp(-x/b))
 
     
@@ -1222,29 +1212,25 @@ def correct_integral(xenergies, ypeaks, errors, DF):
        
         return np.sqrt(np.sum(np.array(sig_func), axis = 0))
                     
-    p0 = (3.87396482e+03, 2.14653674e+04, 5000)
+    
     
     x = xenergies
     y = ypeaks
     yerr = errors
     
-    #popt, cov = curve_fit(saturation_func, x, y, sigma = yerr, p0= p0, absolute_sigma=True, maxfev = 10000)
-    popt_bern, cov_bern = curve_fit(saturation_func_bern, x, y, sigma = yerr, p0 = p0[:-1], absolute_sigma=True, maxfev = 10000)
+    popt, pcov = curve_fit(saturation_func, x, y, sigma = yerr, p0 = p0, absolute_sigma=True, maxfev = 10000)
 
-    print(popt_bern)
-    print(f'a/b: {popt_bern[0]/popt_bern[1]}')
+    print(popt)
+    print(f'a/b: {popt[0]/popt[1]}')
     x_fit = np.linspace(0, xenergies[-1], 100)
-    #y_fit = saturation_func(x_fit, *popt )
-    y_fit_bern = saturation_func_bern(x_fit, *popt_bern )
+    y_fit = saturation_func(x_fit, *popt)
 
 
     plt.figure(figsize=(12,8))
     plt.grid(True, linestyle = 'dashed')
-    plt.scatter(x,y, marker = '1', label = 'Spectral Peaks' )
+    plt.scatter(x,y, marker = 'X', label = 'Spectral Peaks' , s = 100, zorder = 100)
     plt.errorbar(x,y, yerr=yerr, linestyle = ' ')
-    plt.plot(x_fit, y_fit_bern, label = r'$y = a[1-exp(x/b)]$')
-    #plt.plot(x_fit, y_fit, label = r'$y = a(1-exp(x/b-x^2/c)$')
-    #plt.fill_between(x_fit[1:], y_fit[1:]-prop_err(x_fit[1:],popt,cov), y_fit[1:]+prop_err(x_fit[1:],popt,cov))
+    plt.plot(x_fit, y_fit, label = r'$y = a[1-exp(x/b)]$')
     plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', c= 'g', label = 'linear calibration from Al fluorescence')
     plt.plot(x_fit,x_fit*ypeaks[-2]/xenergies[-2],linestyle = '--', c = 'r', label = 'linear calibration from Kα')
     plt.fill_between(x_fit, x_fit*(ypeaks[0]-2*errors[0])/xenergies[0], x_fit*(ypeaks[0]+2*errors[0])/xenergies[0] 
