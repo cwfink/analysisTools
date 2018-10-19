@@ -16,6 +16,10 @@ import seaborn as sns
 
 from scipy import constants
 
+from scipy.signal import decimate
+
+
+
 def calcbaselinecut(arr, r0, i0, rload, dr = 0.1e-3, cut = None):
     """
     Function to automatically generate the pre-pulse baseline cut. 
@@ -248,10 +252,60 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     return traces, np.array(eventnumber), np.array(eventtime), np.array(triggertype), np.array(triggeramp)
 
 
+ def ds_trunc(traces, fs, trunc, ds, template = None):
+    """
+    Function to downsample and/or truncate time series data. 
+    Note, this will likely change the DC offset of the traces
     
+    Parameters
+    ----------
+    traces: ndarray
+        array or time series traces
+    fs: int
+        sample rate
+    trunc: int
+        index of where the trace should be truncated
+    ds: int
+        scale factor for how much downsampling to be done
+        ex: ds = 16 means traces will be downsampled by a factor
+        of 16
+    template: ndarray, optional
+        pulse template to be downsampled
+    
+    Returns
+    -------
+    traces_ds: ndarray
+        downsampled/truncated traces
+    psd_ds: ndarray
+        psd made from downsampled traces
+    fs_ds: int
+        downsampled frequency
+    template_ds: ndarray, optional
+        downsampled template
+        
+    """
+    # truncate the traces/template
+    
+    traces_trunc = traces[..., :trunc]
+    
+    trunc_time = trunc/fs
+    
+    # low pass filter and downsample the traces/template
+    if template is not None:
+        template_trunc = template[(len(template)-trunc)//2:(len(template)-trunc)//2+trunc]
+        template_ds = decimate(template_trunc, ds, zero_phase=True)
+    traces_ds = decimate(traces_trunc, ds, zero_phase=True)
+    
+    fs_ds = len(traces_ds)/trunc_time
+    
+    f_ds, psd_ds = calc_psd(traces_ds, fs=fs_ds, folded_over=False)
+    if template is not None:
+        return traces_ds, template_ds, psd_ds, fs_ds
+    else:
+        return traces_ds, psd_ds, fs_ds   
 
 def process_RQ(file, params):
-    chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, ioffset2  = params
+    chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, ioffset2, lgcdownsample  = params
     traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
     columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
                'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1',              'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
