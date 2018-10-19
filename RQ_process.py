@@ -129,7 +129,7 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     for snum in seriesnums[crand].unique():
         cseries = crand & (seriesnums == snum)
         arr = getRawEvents(f"{basepath}{snum}/", "", channelList=channels, outputFormat=3, 
-                           eventNumbers=evtnums[cseries].tolist())
+                           eventNumbers=evtnums[cseries].astype(int).tolist())
         arrs.append(arr)
         
     chans = list()
