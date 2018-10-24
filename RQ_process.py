@@ -252,7 +252,7 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     return traces, np.array(eventnumber), np.array(eventtime), np.array(triggertype), np.array(triggeramp)
 
 
- def ds_trunc(traces, fs, trunc, ds, template = None):
+def ds_trunc(traces, fs, trunc, ds, template = None):
     """
     Function to downsample and/or truncate time series data. 
     Note, this will likely change the DC offset of the traces
