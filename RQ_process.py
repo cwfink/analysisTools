@@ -211,11 +211,11 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     ----------
     path: str or list of str
         absolute path to the dump to open, or list of paths
-    chan: str
-        channel name, ie 'PDS1'
+    chan: str or list of strings
+        channel name, ie 'PDS1', or ['PDS1', 'PES1']
     det: str
         detector name, ie 'Z1'
-    convtoamps: float, optional
+    convtoamps: float, list of floats, optional
         gain factor to convert ADC bins to TES current. should be units of [A]/[ADCbins]
     
     Returns
@@ -236,8 +236,15 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     """
     if not isinstance(path, list):
         path = list(path)
+    if not isinstance(chan, list):
+        chan = list(chan)
+
+    if not isinstance(convtoamps, list):
+        convtoamps = list(convtoamps)
+    convtoamps_arr = np.array(convtoamps)
+    convtoamps_arr = convtoamps_arr[np.newaxis,:,np.newaxis]
     
-    events = getRawEvents(filepath='',files_series = path, channelList=[chan],outputFormat=3)
+    events = getRawEvents(filepath='',files_series = path, channelList=chan,outputFormat=3)
     eventnumber = []
     eventtime = []
     triggertype = []
@@ -247,7 +254,8 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
         eventtime.append(events['event'][ii]['EventTime'])
         triggertype.append(events['event'][ii]['TriggerType'])
         triggeramp.append(events['trigger'][ii]['TriggerAmplitude'])
-    traces = events[det]['p'][:,0,:]*convtoamps
+    
+    traces = events[det]['p']*convtoamps_arr
     
     return traces, np.array(eventnumber), np.array(eventtime), np.array(triggertype), np.array(triggeramp)
 
