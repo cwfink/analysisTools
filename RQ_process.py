@@ -437,6 +437,127 @@ def process_RQ(file, params):
 
     df_temp = pd.DataFrame.from_dict(temp_data)#.set_index('eventNumber')
     return df_temp
+def process_RQ_DMsearch(file, params):
+    chan, det, convtoamps, template, psds, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload  = params
+    traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
+    columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
+               'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1',              'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
+              'seriesNumber', 'chi2_timedomain',
+              'ofAmps_pileup', 'tdelay_pileup','chi2_pileup', 'ofAmps_tdelay_T5Z2','chi2_T5Z2',
+               'tdelay_T5Z2', 'ofAmps_tdelay_G147', 'chi2_G147', 'tdelay_G147']
+    
+    temp_data = {}
+    for item in columns:
+        temp_data[item] = []
+    dump = file.split('/')[-1].split('_')[-1].split('.')[0]
+    seriesnum = file.split('/')[-2]
+    print(f"On Series: {seriesnum},  dump: {dump}")
+    
+    psd = psds[0]
+    psd_T5Z2 = psds[1]
+    psd_G147 = psds[2]
+
+    for ii, trace_full in enumerate(traces):
+        trace = trace_full[0]
+        baseline = np.mean(np.hstack((trace[:indbasepre], trace[indbasepost:])))
+        trace_bsSub = trace - baseline
+
+        
+        energy_integral1 = integral_Energy_caleb(trace, time, indbasepre, indbasepost, ioffset,qetbias,5e-3, rload)
+
+
+        amp_td_T5Z2, t0_td_T5Z2, chi2_td_T5Z2 = ofamp(trace_full[1], template, psd_T5Z2, fs, lgcsigma = False, nconstrain = 80)
+        amp_td_G147, t0_td_G147, chi2_td_G147 = ofamp(trace_full[2], template, psd_G147, fs, lgcsigma = False, nconstrain = 80)
+        
+        amp_td, t0_td, chi2_td = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80)
+        _, _, amp_pileup, t0_pileup, chi2_pileup = ofamp_pileup(trace, template, psd, fs, a1=amp_td, t1=t0_td, nconstrain1 = 80, nconstrain2 = 1000)
+
+        amp_td_nocon, t0_td_nocon, chi2_td_nocon = ofamp(trace,template, psd,fs, lgcsigma = False)
+        amp, _, chi2 = ofamp(trace,template, psd,fs, withdelay=False, lgcsigma = False)
+        
+        
+        
+        chi2_1000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=1000)
+        chi2_5000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=5000)
+        chi2_10000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=10000)
+        chi2_50000 = chi2lowfreq(trace, template, amp_td, t0_td, psd, fs, fcutoff=50000)
+        
+
+        
+        chi2_timedomain = td_chi2(trace, template, amp_td, t0_td, fs, baseline=np.mean(trace[:indbasepre]))
+        
+        
+        
+        
+
+        temp_data['baseline_pre'].append(np.mean(trace[:indbasepre]))
+        temp_data['baseline_post'].append(np.mean(trace[indbasepost:]))
+        
+        temp_data['slope'].append(np.mean(trace[:indbasepre]) - np.mean(trace[indbasepost:]))
+
+        temp_data['eventNumber'].append(eventNumber[ii])
+        temp_data['eventTime'].append(eventTime[ii])
+        temp_data['seriesNumber'].append(seriesnum)
+
+
+        temp_data['int_bsSub'].append(np.trapz(trace_bsSub, time))
+        
+        temp_data['energy_integral1'].append(energy_integral1)
+
+        temp_data['ofAmps'].append(amp)
+        temp_data['chi2'].append(chi2)
+        temp_data['ofAmps_tdelay'].append(amp_td)
+        temp_data['tdelay'].append(t0_td)
+        temp_data['chi2_tdelay'].append(chi2_td)
+        
+        
+        temp_data['ofAmps_tdelay_T5Z2'].append(amp_td_T5Z2)
+        temp_data['tdelay_T5Z2'].append(t0_td_T5Z2)
+        temp_data['chi2_T5Z2'].append(chi2_td_T5Z2)
+        
+        temp_data['ofAmps_tdelay_G147'].append(amp_td_G147)
+        temp_data['tdelay_G147'].append(t0_td_G147)
+        temp_data['chi2_G147'].append(chi2_td_G147)
+        
+        
+        temp_data['ofAmps_pileup'].append(amp_pileup)
+        temp_data['tdelay_pileup'].append(t0_pileup)
+        temp_data['chi2_pileup'].append(chi2_pileup)
+        
+        temp_data['chi2_timedomain'].append(chi2_timedomain)
+        
+        
+        temp_data['chi2_1000'].append(chi2_1000)
+        temp_data['chi2_5000'].append(chi2_5000)
+        temp_data['chi2_10000'].append(chi2_10000)
+        temp_data['chi2_50000'].append(chi2_50000)
+        
+        temp_data['ofAmps_tdelay_nocon'].append(amp_td_nocon)
+        temp_data['tdelay_nocon'].append(t0_td_nocon)
+        temp_data['chi2_tdelay_nocon'].append(chi2_td_nocon)
+
+        
+        temp_data['triggerType'].append(triggertype[ii])
+        temp_data['triggeramp'].append(triggeramp[ii])
+        
+
+
+    df_temp = pd.DataFrame.from_dict(temp_data)#.set_index('eventNumber')
+    return df_temp
+
+def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload):
+    
+    path = filelist[0]
+    pathgain = path.split('.')[0][:-19]
+
+    nprocess = int(2)
+    pool = multiprocessing.Pool(processes = nprocess)
+    results = pool.starmap(process_RQ_DMsearch, zip(filelist, repeat([chan, det, convtoamps, template, psds, \
+                                        fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, ])))
+    pool.close()
+    pool.join()
+    RQ_df = pd.concat([df for df in results], ignore_index = True)  
+    return RQ_df
 
 
 def multiprocess_RQ(filelist, chan, det, convtoamps, template, psd, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload,ioffset2):
