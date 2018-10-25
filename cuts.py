@@ -400,12 +400,15 @@ class CutUtils(object):
             
         """
         cutnames = self.listcuts()
-        for c in cutnames:
-            globals()[c] = self.loadcut(c)
-        print(f'The following cuts will be loaded into the namespace of cuts.py: {cutnames} \n make sure to run exec() \
-        on the return of this function to import them into the local namespace')
-        importstring = f"from cuts import {', '.join(cutnames)}"
-        return importstring
+        if cutnames is not None:
+            for c in cutnames:
+                globals()[c] = self.loadcut(c)
+            print(f'The following cuts will be loaded into the namespace of cuts.py: {cutnames} \n make sure to run exec() \
+            on the return of this function to import them into the local namespace')
+            importstring = f"from cuts import {', '.join(cutnames)}"
+            return importstring
+        else:
+            return None
 
 
                           
