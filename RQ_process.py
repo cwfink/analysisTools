@@ -443,8 +443,8 @@ def process_RQ_DMsearch(file, params):
     columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
                'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1',              'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
               'seriesNumber', 'chi2_timedomain',
-              'ofAmps_pileup', 'tdelay_pileup','chi2_pileup', 'ofAmps_tdelay_T5Z2','chi2_T5Z2',
-               'tdelay_T5Z2', 'ofAmps_tdelay_G147', 'chi2_G147', 'tdelay_G147']
+              'ofAmps_pileup', 'tdelay_pileup','chi2_pileup','baseline_T5Z2', 'ofAmps0_T5Z2','chi2_T5Z2',
+                'ofAmps0_G147', 'chi2_G147', 'baseline_G147']
     
     temp_data = {}
     for item in columns:
@@ -459,17 +459,23 @@ def process_RQ_DMsearch(file, params):
 
     for ii, trace_full in enumerate(traces):
         trace = trace_full[0]
+        trace_T5Z2 = trace_full[1]
+        trace_G147 = trace_full[2]
         baseline = np.mean(np.hstack((trace[:indbasepre], trace[indbasepost:])))
+        baseline_T5Z2 = np.mean(np.hstack((trace_T5Z2[:indbasepre], trace_T5Z2[indbasepost:])))
+        baseline_G147 = np.mean(np.hstack((trace_G147[:indbasepre], trace_G147[indbasepost:])))
         trace_bsSub = trace - baseline
 
         
         energy_integral1 = integral_Energy_caleb(trace, time, indbasepre, indbasepost, ioffset,qetbias,5e-3, rload)
-
-
-        amp_td_T5Z2, t0_td_T5Z2, chi2_td_T5Z2 = ofamp(trace_full[1], template, psd_T5Z2, fs, lgcsigma = False, nconstrain = 80)
-        amp_td_G147, t0_td_G147, chi2_td_G147 = ofamp(trace_full[2], template, psd_G147, fs, lgcsigma = False, nconstrain = 80)
         
         amp_td, t0_td, chi2_td = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80)
+        
+        anti_con_template = np.roll(template, int(t0_td*fs))
+        amp_T5Z2, _,chi2_T5Z2= ofamp(trace_T5Z2, anti_con_template, psd_T5Z2, fs, withdelay = False, lgcsigma = False)
+        amp_G147, _,chi2_G147= ofamp(trace_G147, anti_con_template, psd_G147, fs, withdelay = False, lgcsigma = False)
+        
+        
         _, _, amp_pileup, t0_pileup, chi2_pileup = ofamp_pileup(trace, template, psd, fs, a1=amp_td, t1=t0_td, nconstrain1 = 80, nconstrain2 = 1000)
 
         amp_td_nocon, t0_td_nocon, chi2_td_nocon = ofamp(trace,template, psd,fs, lgcsigma = False)
@@ -492,6 +498,7 @@ def process_RQ_DMsearch(file, params):
 
         temp_data['baseline_pre'].append(np.mean(trace[:indbasepre]))
         temp_data['baseline_post'].append(np.mean(trace[indbasepost:]))
+                                  
         
         temp_data['slope'].append(np.mean(trace[:indbasepre]) - np.mean(trace[indbasepost:]))
 
@@ -510,14 +517,15 @@ def process_RQ_DMsearch(file, params):
         temp_data['tdelay'].append(t0_td)
         temp_data['chi2_tdelay'].append(chi2_td)
         
+        ############ iZips ##########
+        temp_data['ofAmps0_T5Z2'].append(amp_T5Z2)
+        temp_data['chi2_T5Z2'].append(chi2_T5Z2)
         
-        temp_data['ofAmps_tdelay_T5Z2'].append(amp_td_T5Z2)
-        temp_data['tdelay_T5Z2'].append(t0_td_T5Z2)
-        temp_data['chi2_T5Z2'].append(chi2_td_T5Z2)
-        
-        temp_data['ofAmps_tdelay_G147'].append(amp_td_G147)
-        temp_data['tdelay_G147'].append(t0_td_G147)
-        temp_data['chi2_G147'].append(chi2_td_G147)
+        temp_data['ofAmps0_G147'].append(amp_G147)
+        temp_data['chi2_G147'].append(chi2_G147)
+        temp_data['baseline_T5Z2'].append(baseline_T5Z2)                            
+        temp_data['baseline_G147'].append(baseline_G147)                               
+                                    
         
         
         temp_data['ofAmps_pileup'].append(amp_pileup)
