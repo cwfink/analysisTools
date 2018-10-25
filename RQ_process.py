@@ -438,7 +438,7 @@ def process_RQ(file, params):
     df_temp = pd.DataFrame.from_dict(temp_data)#.set_index('eventNumber')
     return df_temp
 def process_RQ_DMsearch(file, params):
-    chan, det, convtoamps, template, psds, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload  = params
+    chan, det, convtoamps, template, psds, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, lgciZip, lgcHV  = params
     traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
     columns = ['ofAmps_tdelay','tdelay','chi2_tdelay','ofAmps','chi2','baseline_pre', 'baseline_post',
                'slope','int_bsSub','eventNumber','eventTime', 'triggerType','triggeramp','energy_integral1',              'ofAmps_tdelay_nocon','tdelay_nocon','chi2_tdelay_nocon','chi2_1000','chi2_5000','chi2_10000','chi2_50000',
@@ -453,17 +453,41 @@ def process_RQ_DMsearch(file, params):
     seriesnum = file.split('/')[-2]
     print(f"On Series: {seriesnum},  dump: {dump}")
     
-    psd = psds[0]
-    psd_T5Z2 = psds[1]
-    psd_G147 = psds[2]
+    if (lgciZip and lgcHV):
+        psd = psds[0]
+        psd_T5Z2 = psds[1]
+        psd_G147 = psds[2]
+        
+    elif (lgciZip and not lgcHV):
+        psd = psds[0]
+        psd_T5Z2 = psds[1]
+    elif (not lgciZip and lgcHV):
+        psd = psds[0]
+        psd_G147 = psds[1]   
+    elif (not lgciZip and not lgcHV):
+        psd = psds[0]
 
     for ii, trace_full in enumerate(traces):
         trace = trace_full[0]
-        trace_T5Z2 = trace_full[1]
-        trace_G147 = trace_full[2]
+        if lgciZip:
+            trace_T5Z2 = trace_full[1]
+            if lgcHV:
+                trace_G147 = trace_full[2]
+        else:
+            if lgcHV:
+                trace_G147 = trace_full[1]
+            
+                
         baseline = np.mean(np.hstack((trace[:indbasepre], trace[indbasepost:])))
-        baseline_T5Z2 = np.mean(np.hstack((trace_T5Z2[:indbasepre], trace_T5Z2[indbasepost:])))
-        baseline_G147 = np.mean(np.hstack((trace_G147[:indbasepre], trace_G147[indbasepost:])))
+        if lgciZip:
+            baseline_T5Z2 = np.mean(np.hstack((trace_T5Z2[:indbasepre], trace_T5Z2[indbasepost:])))
+        else:
+            baseline_T5Z2 = None
+        if lgcHV:
+            baseline_G147 = np.mean(np.hstack((trace_G147[:indbasepre], trace_G147[indbasepost:])))
+        else:
+            baseline_G147 = None
+            
         trace_bsSub = trace - baseline
 
         
@@ -472,8 +496,16 @@ def process_RQ_DMsearch(file, params):
         amp_td, t0_td, chi2_td = ofamp(trace, template, psd, fs, lgcsigma = False, nconstrain = 80)
         
         anti_con_template = np.roll(template, int(t0_td*fs))
-        amp_T5Z2, _,chi2_T5Z2= ofamp(trace_T5Z2, anti_con_template, psd_T5Z2, fs, withdelay = False, lgcsigma = False)
-        amp_G147, _,chi2_G147= ofamp(trace_G147, anti_con_template, psd_G147, fs, withdelay = False, lgcsigma = False)
+        if lgciZip:
+            amp_T5Z2, _,chi2_T5Z2= ofamp(trace_T5Z2, anti_con_template, psd_T5Z2, fs, withdelay = False, lgcsigma = False)
+        else:
+            amp_T5Z2 = None
+            chi2_T5Z2 = None
+        if lgcHV:
+            amp_G147, _,chi2_G147= ofamp(trace_G147, anti_con_template, psd_G147, fs, withdelay = False, lgcsigma = False)
+        else:
+            amp_G147 = None
+            chi2_G147 = None
         
         
         _, _, amp_pileup, t0_pileup, chi2_pileup = ofamp_pileup(trace, template, psd, fs, a1=amp_td, t1=t0_td, nconstrain1 = 80, nconstrain2 = 1000)
@@ -561,7 +593,7 @@ def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs ,time
     nprocess = int(1)
     pool = multiprocessing.Pool(processes = nprocess)
     results = pool.starmap(process_RQ_DMsearch, zip(filelist, repeat([chan, det, convtoamps, template, psds, \
-                                        fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, ])))
+                                        fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload,lgciZip, lgcHV ])))
     pool.close()
     pool.join()
     RQ_df = pd.concat([df for df in results], ignore_index = True)  
