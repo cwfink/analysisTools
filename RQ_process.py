@@ -550,7 +550,7 @@ def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs ,time
     path = filelist[0]
     pathgain = path.split('.')[0][:-19]
 
-    nprocess = int(2)
+    nprocess = int(1)
     pool = multiprocessing.Pool(processes = nprocess)
     results = pool.starmap(process_RQ_DMsearch, zip(filelist, repeat([chan, det, convtoamps, template, psds, \
                                         fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload, ])))
