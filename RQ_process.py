@@ -585,7 +585,7 @@ def process_RQ_DMsearch(file, params):
     df_temp = pd.DataFrame.from_dict(temp_data)#.set_index('eventNumber')
     return df_temp
 
-def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload):
+def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload,lgciZip, lgcHV):
     
     path = filelist[0]
     pathgain = path.split('.')[0][:-19]
