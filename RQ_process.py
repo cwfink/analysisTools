@@ -85,7 +85,7 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
             then no cut is applied.
         channels : list, optional
             A list of strings that contains all of the channels that should be loaded.
-        convtoamps : float, optional
+        convtoamps : float or list of floats, optional
             The factor that the traces should be multiplied by to convert ADC bins to Amperes.
         fs : float, optional
             The sample rate in Hz of the data.
@@ -118,6 +118,11 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     if type(seriesnums) is not pd.core.series.Series:
         seriesnums = pd.Series(data=seriesnums)
         
+    if not isinstance(convtoamps, list):
+        convtoamps = list(convtoamps)
+    convtoamps_arr = np.array(convtoamps)
+    convtoamps_arr = convtoamps_arr[np.newaxis,:,np.newaxis]
+        
     if cut is None:
         cut = np.ones(len(evtnums), dtype=bool)
         
@@ -144,7 +149,7 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     x = np.vstack([a["Z1"]["p"][:, chans] for a in arrs]).astype(float)
     t = np.arange(x.shape[-1])/fs
     
-    x*=convtoamps
+    x*=convtoamps_arr
     
     if lgcplot:
         
