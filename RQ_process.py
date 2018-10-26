@@ -151,18 +151,18 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
         if nplot>ntraces:
             nplot = ntraces
     
-        colors = plt.cm.viridis(np.linspace(0, 1, num=nplot), alpha=0.5)
+        colors = plt.cm.viridis(np.linspace(0, 1, num=len(chans)), alpha=0.5)
 
         for ii in range(nplot):
-
+            
             fig, ax = plt.subplots(figsize=(10, 6))
-            for chan in chans:
-                ax.plot(t * 1e6, x[ii, chan] * 1e6, color=colors[ii], label="Channel {arr['Z1']['pChan'][chan]}")
+            for jj, chan in enumerate(chans):
+                ax.plot(t * 1e6, x[ii, chan] * 1e6, color=colors[jj], label=f"Channel {arr['Z1']['pChan'][chan]}")
             ax.grid()
             ax.set_ylabel("Current [μA]")
             ax.set_xlabel("Time [μs]")
             ax.set_title(f"Pulses, Evt Num {evtnums[crand].iloc[ii]}, Series Num {seriesnums[crand].iloc[ii]}");
-    
+            ax.legend()
     
     return t, x, crand
 
