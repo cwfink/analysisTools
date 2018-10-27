@@ -630,7 +630,7 @@ def process_RQ_crosstalk(file, params):
         trace_bsSub1 = trace1 - baseline1
         trace_bsSub2 = trace2 - baseline2
         trace_bsSub3 = trace3 - baseline3
-
+    
         
         if trigger == 1:
             amp1, t01, chi21 = ofamp(trace1, template1, psd1, fs, lgcsigma = False, nconstrain = 80)
@@ -651,7 +651,12 @@ def process_RQ_crosstalk(file, params):
             amp1, t01,chi21= ofamp(trace1, template1, psd1, fs, withdelay = False, lgcsigma = False)
             amp2, t02,chi22= ofamp(trace2, template2, psd2, fs, withdelay = False, lgcsigma = False)
             
-            
+        elif trigger is None:
+            amp1, t01,chi21= ofamp(trace1, template1, psd1, fs, withdelay = False, lgcsigma = False)
+            amp2, t02,chi22= ofamp(trace2, template2, psd2, fs, withdelay = False, lgcsigma = False)
+            amp3, t03, chi23 = ofamp(trace3, template3, psd3, fs, withdelay = False, lgcsigma = False)
+        else:
+            raise ValueError('trigger must be 1, 2, 3, or None')
 
         temp_data['eventNumber'].append(eventNumber[ii])
         temp_data['eventTime'].append(eventTime[ii])
