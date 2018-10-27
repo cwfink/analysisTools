@@ -590,6 +590,118 @@ def process_RQ_DMsearch(file, params):
     df_temp = pd.DataFrame.from_dict(temp_data)#.set_index('eventNumber')
     return df_temp
 
+
+def process_RQ_crosstalk(file, params):
+    chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger = params
+    traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
+    columns = [f'baseline_{chan[0]}', f'baseline_{chan[1]}', f'baseline_{chan[2]}',
+              f'int_bsSub_{chan[0]}',f'int_bsSub_{chan[1]}',f'int_bsSub_{chan[2]}',
+              f'ofAmps_{chan[0]}',f'ofAmps_{chan[1]}',f'ofAmps_{chan[2]}',
+              f'chi2_{chan[0]}',f'chi2_{chan[1]}',f'chi2_{chan[2]}',
+              f't0_{chan[0]}',f't0_{chan[1]}',f't0_{chan[2]}',
+              'eventNumber','eventTime','seriesNumber','triggerType','triggeramp','trigger_chan']
+    
+    temp_data = {}
+    for item in columns:
+        temp_data[item] = []
+    dump = file.split('/')[-1].split('_')[-1].split('.')[0]
+    seriesnum = file.split('/')[-2]
+    print(f"On Series: {seriesnum},  dump: {dump}")
+    
+    
+    psd1 = psds[0]
+    psd2 = psds[1]
+    psd3 = psds[2]
+        
+    template1 = template[0]
+    template2 = template[1]
+    template3 = template[2]
+
+    for ii, trace_full in enumerate(traces):
+        trace1 = trace_full[0]
+        trace2 = trace_full[1]
+        trace3 = trace_full[2]
+        
+                
+        baseline1 = np.mean(np.hstack((trace1[:indbasepre], trace1[indbasepost:])))
+        baseline2 = np.mean(np.hstack((trace2[:indbasepre], trace2[indbasepost:])))
+        baseline3 = np.mean(np.hstack((trace3[:indbasepre], trace3[indbasepost:])))
+            
+        trace_bsSub1 = trace1 - baseline1
+        trace_bsSub2 = trace2 - baseline2
+        trace_bsSub3 = trace3 - baseline3
+
+        
+        if trigger == 1:
+            amp1, t01, chi21 = ofamp(trace1, template1, psd1, fs, lgcsigma = False, nconstrain = 80)
+            template2 = np.roll(template2, int(t01*fs))
+            template3 = np.roll(template3, int(t01*fs))
+            amp2, t02,chi22= ofamp(trace2, template2, psd2, fs, withdelay = False, lgcsigma = False)
+            amp3, t03,chi23= ofamp(trace3, template3, psd3, fs, withdelay = False, lgcsigma = False)
+        elif trigger == 2:
+            amp2, t02, chi22 = ofamp(trace2, template2, psd2, fs, lgcsigma = False, nconstrain = 80)
+            template1 = np.roll(template1, int(t02*fs))
+            template3 = np.roll(template3, int(t02*fs))
+            amp1, t01,chi21= ofamp(trace1, template1, psd1, fs, withdelay = False, lgcsigma = False)
+            amp3, t03,chi23= ofamp(trace3, template3, psd3, fs, withdelay = False, lgcsigma = False)
+        elif trigger == 3:
+            amp3, t03, chi23 = ofamp(trace3, template3, psd3, fs, lgcsigma = False, nconstrain = 80)
+            template1 = np.roll(template1, int(t03*fs))
+            template2 = np.roll(template2, int(t03*fs))
+            amp1, t01,chi21= ofamp(trace1, template1, psd1, fs, withdelay = False, lgcsigma = False)
+            amp2, t02,chi22= ofamp(trace2, template2, psd2, fs, withdelay = False, lgcsigma = False)
+            
+            
+
+        temp_data['eventNumber'].append(eventNumber[ii])
+        temp_data['eventTime'].append(eventTime[ii])
+        temp_data['seriesNumber'].append(seriesnum)
+        
+        temp_data[f'baseline_{chan[0]}'].append(baseline1)
+        temp_data[f'baseline_{chan[1]}'].append(baseline2)
+        temp_data[f'baseline_{chan[2]}'].append(baseline3)
+
+        temp_data[f'int_bsSub_{chan[0]}'].append(np.trapz(trace_bsSub1, time))
+        temp_data[f'int_bsSub_{chan[1]}'].append(np.trapz(trace_bsSub2, time))
+        temp_data[f'int_bsSub_{chan[2]}'].append(np.trapz(trace_bsSub3, time))
+
+        temp_data[f'ofAmps_{chan[0]}'].append(amp1)
+        temp_data[f'ofAmps_{chan[1]}'].append(amp2)
+        temp_data[f'ofAmps_{chan[2]}'].append(amp3)
+        
+        temp_data[f'chi2_{chan[0]}'].append(chi21)
+        temp_data[f'chi2_{chan[1]}'].append(chi22)
+        temp_data[f'chi2_{chan[2]}'].append(chi23)
+        
+        temp_data[f't0_{chan[0]}'].append(t01)
+        temp_data[f't0_{chan[1]}'].append(t02)
+        temp_data[f't0_{chan[2]}'].append(t03)
+        
+        temp_data['triggerType'].append(triggertype[ii])
+        temp_data['triggeramp'].append(triggeramp[ii])
+        
+        temp_data['trigger_chan'].append(chan[trigger -1])
+        
+
+    df_temp = pd.DataFrame.from_dict(temp_data)
+    return df_temp
+
+
+def multiprocess_RQ_crosstalk(filelist, chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger):
+    
+    path = filelist[0]
+    pathgain = path.split('.')[0][:-19]
+
+    nprocess = int(1)
+    pool = multiprocessing.Pool(processes = nprocess)
+    results = pool.starmap(process_RQ_DMsearch, zip(filelist, repeat([chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger])))
+    pool.close()
+    pool.join()
+    RQ_df = pd.concat([df for df in results], ignore_index = True)  
+    return RQ_df
+
+
+
 def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload,lgciZip, lgcHV):
     
     path = filelist[0]
