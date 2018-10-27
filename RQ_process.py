@@ -699,7 +699,7 @@ def multiprocess_RQ_crosstalk(filelist, chan, det, convtoamps, template, psds, f
 
     nprocess = int(1)
     pool = multiprocessing.Pool(processes = nprocess)
-    results = pool.starmap(process_RQ_DMsearch, zip(filelist, repeat([chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger])))
+    results = pool.starmap(process_RQ_crosstalk, zip(filelist, repeat([chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger])))
     pool.close()
     pool.join()
     RQ_df = pd.concat([df for df in results], ignore_index = True)  
