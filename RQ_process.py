@@ -1061,6 +1061,7 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     x,y, bins = hist_data(arr,  xrange)
     
     yerr = np.sqrt(y)
+    yerr[yerr == 0] = 1
     if noiserange is not None:
         if noiserange[0][0] >= xrange[0]:
             clowl = noiserange[0][0]
@@ -1072,6 +1073,8 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
             chighh = noiserange[1][1] 
         else:
             chighh = xrange[1]
+            
+            
         indlowl = (np.abs(x - clowl)).argmin()
         indlowh = (np.abs(x - clowh)).argmin() 
         indhighl = (np.abs(x - chighl)).argmin()
@@ -1079,11 +1082,9 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
         background = np.mean(np.concatenate((y[indlowl:indlowh],y[indhighl:indhighh])))
         y_noback = y - background
          
-    if noiserange is not None:
-        #y_to_fit = y_noback
-        y_to_fit = y
     else:
-        y_to_fit = y
+        background = 0
+    y_to_fit = y
         
     A0 = np.max(y_to_fit)
     mu0 = x[np.argmax(y_to_fit)]
@@ -1103,7 +1104,7 @@ def find_peak(arr ,xrange = None, noiserange = None, lgcplotorig = False):
     plt.plot([],[], linestyle = ' ', label = f' A = {fitparams[0]:.2f} $\pm$ {errors[0]:.3f}')
     plt.plot([],[], linestyle = ' ', label = f' Offset = {fitparams[3]:.2f} $\pm$ {errors[3]:.3f}')
     if lgcplotorig:
-        plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='original data', alpha = .3)
+        plt.hist(x, bins = bins, weights = y, histtype = 'step', linewidth = 1, label ='original data', alpha = .9)
         plt.axhline(background, label = 'average background rate', linestyle = '--', alpha = .3)
     if noiserange is not None:
         plt.hist(x, bins = bins, weights = y_noback, histtype = 'step', linewidth = 1, label ='background subtracted data')
