@@ -684,8 +684,10 @@ def process_RQ_crosstalk(file, params):
         
         temp_data['triggerType'].append(triggertype[ii])
         temp_data['triggeramp'].append(triggeramp[ii])
-        
-        temp_data['trigger_chan'].append(chan[trigger -1])
+        if trigger is None:
+            temp_data['trigger_chan'].append(None)
+        else:
+            temp_data['trigger_chan'].append(chan[trigger -1])
         
 
     df_temp = pd.DataFrame.from_dict(temp_data)
