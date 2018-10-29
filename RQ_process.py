@@ -119,7 +119,7 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
         seriesnums = pd.Series(data=seriesnums)
         
     if not isinstance(convtoamps, list):
-        convtoamps = list(convtoamps)
+        convtoamps = [convtoamps]
     convtoamps_arr = np.array(convtoamps)
     convtoamps_arr = convtoamps_arr[np.newaxis,:,np.newaxis]
         
