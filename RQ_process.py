@@ -240,12 +240,12 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
         
     """
     if not isinstance(path, list):
-        path = list(path)
+        path = [path]
     if not isinstance(chan, list):
-        chan = list(chan)
+        chan = [chan]
 
     if not isinstance(convtoamps, list):
-        convtoamps = list(convtoamps)
+        convtoamps = [convtoamps]
     convtoamps_arr = np.array(convtoamps)
     convtoamps_arr = convtoamps_arr[np.newaxis,:,np.newaxis]
     
@@ -599,6 +599,10 @@ def process_RQ_crosstalk(file, params):
               f'ofAmps_{chan[0]}',f'ofAmps_{chan[1]}',f'ofAmps_{chan[2]}',
               f'chi2_{chan[0]}',f'chi2_{chan[1]}',f'chi2_{chan[2]}',
               f't0_{chan[0]}',f't0_{chan[1]}',f't0_{chan[2]}',
+              f'ofAmps_delay_{chan[0]}',f'ofAmps_delay_{chan[1]}',f'ofAmps_delay_{chan[2]}',
+              f'chi2_delay_{chan[0]}',f'chi2_delay_{chan[1]}',f'chi2_delay_{chan[2]}',
+              f't0_delay_{chan[0]}',f't0_delay_{chan[1]}',f't0_delay_{chan[2]}',
+              f'ofAmpsweird', f'chi2weird', f't0weird',
               'eventNumber','eventTime','seriesNumber','triggerType','triggeramp','trigger_chan']
     
     temp_data = {}
@@ -609,6 +613,7 @@ def process_RQ_crosstalk(file, params):
     print(f"On Series: {seriesnum},  dump: {dump}")
     
     
+    
     psd1 = psds[0]
     psd2 = psds[1]
     psd3 = psds[2]
@@ -616,13 +621,13 @@ def process_RQ_crosstalk(file, params):
     template1 = template[0]
     template2 = template[1]
     template3 = template[2]
+    template_weird = template[3]
 
     for ii, trace_full in enumerate(traces):
         trace1 = trace_full[0]
         trace2 = trace_full[1]
         trace3 = trace_full[2]
         
-                
         baseline1 = np.mean(np.hstack((trace1[:indbasepre], trace1[indbasepost:])))
         baseline2 = np.mean(np.hstack((trace2[:indbasepre], trace2[indbasepost:])))
         baseline3 = np.mean(np.hstack((trace3[:indbasepre], trace3[indbasepost:])))
@@ -631,30 +636,42 @@ def process_RQ_crosstalk(file, params):
         trace_bsSub2 = trace2 - baseline2
         trace_bsSub3 = trace3 - baseline3
     
+        amp1_delay, t01_delay, chi21_delay = ofamp(trace1, template1, psd1, fs, withdelay=True, 
+                                                   lgcsigma = False, nconstrain = 80)
+        
+        amp2_delay, t02_delay, chi22_delay = ofamp(trace2, template2, psd2, fs, withdelay = True, 
+                                                   lgcsigma = False, nconstrain=80)
+        amp3_delay, t03_delay, chi23_delay = ofamp(trace3, template3, psd3, fs, withdelay = True, 
+                                                   lgcsigma = False, nconstrain = 80)
+        
+        ampweird, t0weird, chi2weird = ofamp(trace1, template_weird, psd1, fs, lgcsigma = False, nconstrain = 80)
         
         if trigger == 1:
-            amp1, t01, chi21 = ofamp(trace1, template1, psd1, fs, lgcsigma = False, nconstrain = 80)
-            template2 = np.roll(template2, int(t01*fs))
-            template3 = np.roll(template3, int(t01*fs))
-            amp2, t02,chi22= ofamp(trace2, template2, psd2, fs, withdelay = False, lgcsigma = False)
-            amp3, t03,chi23= ofamp(trace3, template3, psd3, fs, withdelay = False, lgcsigma = False)
+            amp1, t01, chi21 = ofamp(trace1, template1, psd1, fs, withdelay=False, lgcsigma = False)
+            template2_rolled = np.roll(template2, int(t01_delay*fs))
+            template3_rolled = np.roll(template3, int(t01_delay*fs))
+            amp2, t02,chi22= ofamp(trace2, template2_rolled, psd2, fs, withdelay = False, lgcsigma = False)
+            amp3, t03,chi23= ofamp(trace3, template3_rolled, psd3, fs, withdelay = False, lgcsigma = False)
+            
         elif trigger == 2:
-            amp2, t02, chi22 = ofamp(trace2, template2, psd2, fs, lgcsigma = False, nconstrain = 80)
-            template1 = np.roll(template1, int(t02*fs))
-            template3 = np.roll(template3, int(t02*fs))
-            amp1, t01,chi21= ofamp(trace1, template1, psd1, fs, withdelay = False, lgcsigma = False)
-            amp3, t03,chi23= ofamp(trace3, template3, psd3, fs, withdelay = False, lgcsigma = False)
-        elif trigger == 3:
-            amp3, t03, chi23 = ofamp(trace3, template3, psd3, fs, lgcsigma = False, nconstrain = 80)
-            template1 = np.roll(template1, int(t03*fs))
-            template2 = np.roll(template2, int(t03*fs))
-            amp1, t01,chi21= ofamp(trace1, template1, psd1, fs, withdelay = False, lgcsigma = False)
             amp2, t02,chi22= ofamp(trace2, template2, psd2, fs, withdelay = False, lgcsigma = False)
+            template1_rolled = np.roll(template1, int(t02_delay*fs))
+            template3_rolled = np.roll(template3, int(t02_delay*fs))
+            amp1, t01, chi21 = ofamp(trace1, template1_rolled, psd1, fs, withdelay=False, lgcsigma = False)
+            amp3, t03,chi23= ofamp(trace3, template3_rolled, psd3, fs, withdelay = False, lgcsigma = False)
+            
+        elif trigger == 3:
+            amp3, t03,chi23= ofamp(trace3, template3, psd3, fs, withdelay = False, lgcsigma = False)
+            template1_rolled = np.roll(template1, int(t03_delay*fs))
+            template2_rolled = np.roll(template2, int(t03_delay*fs))
+            amp1, t01, chi21 = ofamp(trace1, template1_rolled, psd1, fs, withdelay=False, lgcsigma = False)
+            amp2, t02,chi22= ofamp(trace2, template2_rolled, psd2, fs, withdelay = False, lgcsigma = False)
             
         elif trigger is None:
             amp1, t01,chi21= ofamp(trace1, template1, psd1, fs, withdelay = False, lgcsigma = False)
             amp2, t02,chi22= ofamp(trace2, template2, psd2, fs, withdelay = False, lgcsigma = False)
             amp3, t03, chi23 = ofamp(trace3, template3, psd3, fs, withdelay = False, lgcsigma = False)
+            
         else:
             raise ValueError('trigger must be 1, 2, 3, or None')
 
@@ -682,14 +699,30 @@ def process_RQ_crosstalk(file, params):
         temp_data[f't0_{chan[1]}'].append(t02)
         temp_data[f't0_{chan[2]}'].append(t03)
         
+        temp_data[f'ofAmps_delay_{chan[0]}'].append(amp1_delay)
+        temp_data[f'ofAmps_delay_{chan[1]}'].append(amp2_delay)
+        temp_data[f'ofAmps_delay_{chan[2]}'].append(amp3_delay)
+        
+        temp_data[f'chi2_delay_{chan[0]}'].append(chi21_delay)
+        temp_data[f'chi2_delay_{chan[1]}'].append(chi22_delay)
+        temp_data[f'chi2_delay_{chan[2]}'].append(chi23_delay)
+        
+        temp_data[f't0_delay_{chan[0]}'].append(t01_delay)
+        temp_data[f't0_delay_{chan[1]}'].append(t02_delay)
+        temp_data[f't0_delay_{chan[2]}'].append(t03_delay)
+        
+        temp_data[f'ofAmpsweird'].append(ampweird)
+        temp_data[f'chi2weird'].append(chi2weird)
+        temp_data[f't0weird'].append(t0weird)
+        
         temp_data['triggerType'].append(triggertype[ii])
         temp_data['triggeramp'].append(triggeramp[ii])
+        
         if trigger is None:
             temp_data['trigger_chan'].append(None)
         else:
             temp_data['trigger_chan'].append(chan[trigger -1])
-        
-
+            
     df_temp = pd.DataFrame.from_dict(temp_data)
     return df_temp
 
