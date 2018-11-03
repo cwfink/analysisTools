@@ -264,6 +264,17 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     
     return traces, np.array(eventnumber), np.array(eventtime), np.array(triggertype), np.array(triggeramp)
 
+def pulse_func(x, tau_r, tau_f):
+    return np.exp(-x/tau_f)-np.exp(-x/tau_r)
+
+def make_template(x, tau_r, tau_f, offset):
+    pulse = pulse_func(x, tau_r,tau_f)
+    pulse_shifted = np.roll(pulse, offset)
+    pulse_norm = pulse_shifted/pulse_shifted.max()
+    print(offset)
+    return pulse_norm
+
+
 
 def ds_trunc(traces, fs, trunc, ds, template = None):
     """
