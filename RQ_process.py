@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import sys
+import os
 sys.path.append('/scratch/cwfink/repositories/scdmsPyTools/build/lib/scdmsPyTools/BatTools')
 from scdmsPyTools.BatTools.IO import *
 import multiprocessing
@@ -604,7 +605,14 @@ def process_RQ_DMsearch(file, params):
 
 def process_RQ_crosstalk(file, params):
     chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger = params
+    
     traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
+    
+    qetbias = np.zeros(len(chan))
+    
+    for ii, ch in enumerate(chan):
+        qetbias[ii] = get_trace_gain(os.path.dirname(file), ch, det)[-1]
+    
     columns = [f'baseline_{chan[0]}', f'baseline_{chan[1]}', f'baseline_{chan[2]}',
               f'int_bsSub_{chan[0]}',f'int_bsSub_{chan[1]}',f'int_bsSub_{chan[2]}',
               f'ofAmps_{chan[0]}',f'ofAmps_{chan[1]}',f'ofAmps_{chan[2]}',
@@ -613,8 +621,13 @@ def process_RQ_crosstalk(file, params):
               f'ofAmps_delay_{chan[0]}',f'ofAmps_delay_{chan[1]}',f'ofAmps_delay_{chan[2]}',
               f'chi2_delay_{chan[0]}',f'chi2_delay_{chan[1]}',f'chi2_delay_{chan[2]}',
               f't0_delay_{chan[0]}',f't0_delay_{chan[1]}',f't0_delay_{chan[2]}',
-              f'ofAmpsweird', f'chi2weird', f't0weird',
-              'eventNumber','eventTime','seriesNumber','triggerType','triggeramp','trigger_chan']
+              'eventNumber','eventTime','seriesNumber','triggerType','triggeramp','trigger_chan',
+              f'qetbias_{chan[0]}', f'qetbias_{chan[1]}', f'qetbias_{chan[2]}']
+    
+    if len(template) > 3:
+        columns.extend(['ofAmps_PD2_T5Z2', 'chi2_PD2_T5Z2','t0_PD2_T5Z2'])
+    if len(template) > 4:
+        columns.extend(['ofAmps_PD2_G147', 'chi2_PD2_G147','t0_PD2_G147'])
     
     temp_data = {}
     for item in columns:
@@ -623,16 +636,18 @@ def process_RQ_crosstalk(file, params):
     seriesnum = file.split('/')[-2]
     print(f"On Series: {seriesnum},  dump: {dump}")
     
-    
-    
     psd1 = psds[0]
     psd2 = psds[1]
     psd3 = psds[2]
-        
+    
     template1 = template[0]
     template2 = template[1]
     template3 = template[2]
-    template_weird = template[3]
+    
+    if len(template) > 3:
+        template_PD2_T5Z2 = template[3]
+    if len(template) > 4:
+        template_PD2_G147 = template[4]
 
     for ii, trace_full in enumerate(traces):
         trace1 = trace_full[0]
@@ -655,7 +670,10 @@ def process_RQ_crosstalk(file, params):
         amp3_delay, t03_delay, chi23_delay = ofamp(trace3, template3, psd3, fs, withdelay = True, 
                                                    lgcsigma = False, nconstrain = 80)
         
-        ampweird, t0weird, chi2weird = ofamp(trace1, template_weird, psd1, fs, lgcsigma = False, nconstrain = 80)
+        if len(template) > 3:
+            amp_PD2_T5Z2, t0_PD2_T5Z2, chi2_PD2_T5Z2 = ofamp(trace1, template_PD2_T5Z2, psd1, fs, nconstrain = 80)
+        if len(template) > 4:
+            amp_PD2_G147, t0_PD2_G147, chi2_PD2_G147 = ofamp(trace1, template_PD2_G147, psd1, fs, nconstrain = 80)
         
         if trigger == 1:
             amp1, t01, chi21 = ofamp(trace1, template1, psd1, fs, withdelay=False, lgcsigma = False)
@@ -722,9 +740,18 @@ def process_RQ_crosstalk(file, params):
         temp_data[f't0_delay_{chan[1]}'].append(t02_delay)
         temp_data[f't0_delay_{chan[2]}'].append(t03_delay)
         
-        temp_data[f'ofAmpsweird'].append(ampweird)
-        temp_data[f'chi2weird'].append(chi2weird)
-        temp_data[f't0weird'].append(t0weird)
+        for ii, ch in enumerate(chan):
+            temp_data[f'qetbias_{chan[ii]}'].append(qetbias[ii])
+        
+        if len(template) > 3:
+            temp_data[f'ofAmps_PD2_T5Z2'].append(amp_PD2_T5Z2)
+            temp_data[f'chi2_PD2_T5Z2'].append(chi2_PD2_T5Z2)
+            temp_data[f't0_PD2_T5Z2'].append(t0_PD2_T5Z2)
+        
+        if len(template) > 4:
+            temp_data[f'ofAmps_PD2_G147'].append(amp_PD2_G147)
+            temp_data[f'chi2_PD2_G147'].append(chi2_PD2_G147)
+            temp_data[f't0_PD2_G147'].append(t0_PD2_G147)
         
         temp_data['triggerType'].append(triggertype[ii])
         temp_data['triggeramp'].append(triggeramp[ii])
@@ -736,6 +763,7 @@ def process_RQ_crosstalk(file, params):
             
     df_temp = pd.DataFrame.from_dict(temp_data)
     return df_temp
+
 
 
 def multiprocess_RQ_crosstalk(filelist, chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger):
