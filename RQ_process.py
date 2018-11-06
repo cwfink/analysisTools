@@ -707,18 +707,16 @@ def process_RQ_DMsearch(file, params):
         temp_data['seriesNumber'].append(rq_dict["seriesnumber"][ii])
         temp_data['triggerType'].append(rq_dict["triggertype"][ii])
         temp_data['triggerAmp'].append(rq_dict["triggeramp"][ii])
-        #temp_data['readoutStatus'].append(rq_dict["triggeramp"][ii])
         temp_data['readoutStatus'].append(rq_dict["readoutstatus"][ii])
-        temp_data['pollingEndTime'].append(rq_dict["triggeramp"][ii])
-        temp_data['triggerTime'].append(rq_dict["triggeramp"][ii])
-        temp_data['deadTime'].append(rq_dict["triggeramp"][ii])
-        temp_data['liveTime'].append(rq_dict["triggeramp"][ii])
-        temp_data['seriesTime'].append(rq_dict["triggeramp"][ii])
-        temp_data['triggerVetoReadoutTime'].append(rq_dict["triggeramp"][ii])
-        temp_data['waveformReadEndTime'].append(rq_dict["triggeramp"][ii])
-        temp_data['waveformReadStartTime'].append(rq_dict["triggeramp"][ii])
+        temp_data['pollingEndTime'].append(rq_dict["pollingendtime"][ii])
+        temp_data['triggerTime'].append(rq_dict["triggertime"][ii])
+        temp_data['deadTime'].append(rq_dict["deadtime"][ii])
+        temp_data['liveTime'].append(rq_dict["livetime"][ii])
+        temp_data['seriesTime'].append(rq_dict["seriestime"][ii])
+        temp_data['triggerVetoReadoutTime'].append(rq_dict["triggervetoreadouttime"][ii])
+        temp_data['waveformReadEndTime'].append(rq_dict["waveformreadendtime"][ii])
+        temp_data['waveformReadStartTime'].append(rq_dict["waveformreadstarttime"][ii])
         
-        #if temp_data['readoutStatus'] == 1:
         if temp_data['readoutStatus'][ii] == 1:
         
             trace1 = trace_full[0]
