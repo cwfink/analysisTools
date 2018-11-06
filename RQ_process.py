@@ -664,7 +664,7 @@ def process_RQ_crosstalk(file, params):
 
 
 def process_RQ_DMsearch(file, params):
-    chan, det, convtoamps, template, psds, fs, time, indbasepre, indbasepost = params
+    chan, det, convtoamps, template, psds, fs, time, indbasepre, indbasepost, savepath, lgcsavedumps = params
     
     traces, rq_dict = get_traces_per_dump([file], chan=chan, det=det, convtoamps=convtoamps)
     
@@ -872,6 +872,9 @@ def process_RQ_DMsearch(file, params):
             temp_data['chi2_lowfreq'].append(-999999.0)
             
     df_temp = pd.DataFrame.from_dict(temp_data)
+    if lgcsavedumps:
+        df_temp.to_pickle(f'{savepath}rq_df_{seriesnum}_d{dump}.pkl')   
+
     return df_temp
 
 
@@ -891,7 +894,7 @@ def multiprocess_RQ_crosstalk(filelist, chan, det, convtoamps, template, psds, f
 
 
 
-def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs, time, indbasepre, indbasepost):
+def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs, time, indbasepre, indbasepost, savepath, lgcsavedumps):
     
     path = filelist[0]
     pathgain = path.split('.')[0][:-19]
@@ -899,7 +902,7 @@ def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs, time
     nprocess = int(1)
     pool = multiprocessing.Pool(processes = nprocess)
     results = pool.starmap(process_RQ_DMsearch, zip(filelist, repeat([chan, det, convtoamps, template, psds, 
-                                                    fs, time, indbasepre, indbasepost])))
+                                                    fs, time, indbasepre, indbasepost, savepath, lgcsavedumps])))
     pool.close()
     pool.join()
     RQ_df = pd.concat([df for df in results], ignore_index = True)  
