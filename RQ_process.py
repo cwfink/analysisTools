@@ -250,20 +250,64 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     convtoamps_arr = np.array(convtoamps)
     convtoamps_arr = convtoamps_arr[np.newaxis,:,np.newaxis]
     
-    events = getRawEvents(filepath='',files_series = path, channelList=chan,outputFormat=3)
-    eventnumber = []
-    eventtime = []
-    triggertype = []
-    triggeramp = []
-    for ii in range(len(events['event'])):
-        eventnumber.append(events['event'][ii]['EventNumber'])
-        eventtime.append(events['event'][ii]['EventTime'])
-        triggertype.append(events['event'][ii]['TriggerType'])
-        triggeramp.append(events['trigger'][ii]['TriggerAmplitude'])
+    events = getRawEvents(filepath='',files_series = path, channelList=chan, skipEmptyEvents=False, outputFormat=3)
+    
+    columns = ["eventnumber", "seriesnumber", "eventtime", "triggertype", "readoutstatus", "pollingendtime", 
+               "triggertime", "deadtime", "livetime", "seriestime", "triggervetoreadouttime",
+               "waveformreadendtime", "waveformreadstarttime", "triggeramp"]
+
+    rq_dict = {}
+    for item in columns:
+        rq_dict[item] = []
+    
+    for ev, trig, trigv in zip(events["event"], events["trigger"], events["trigger_veto"]):
+        rq_dict["eventnumber"].append(ev["EventNumber"])
+        rq_dict["seriesnumber"].append(ev["SeriesNumber"])
+        rq_dict["eventtime"].append(ev["EventTime"])
+        rq_dict["triggertype"].append(ev["TriggerType"])
+        rq_dict["triggeramp"].append(trig['TriggerAmplitude'])
+        rq_dict["pollingendtime"].append(ev["PollingEndTime"])
+
+        rq_dict["triggertime"].append(trig["TriggerTime"])
+
+        try:
+            rq_dict["readoutstatus"].append(trigv[det]["ReadoutStatus"])
+        except:
+            rq_dict["readoutstatus"].append(-999999.0)
+
+        try:
+            rq_dict["deadtime"].append(trigv[det]["DeadTime0"])
+        except:
+            rq_dict["deadtime"].append(-999999.0)
+
+        try:
+            rq_dict["livetime"].append(trigv[det]["LiveTime0"])
+        except:
+            rq_dict["livetime"].append(-999999.0)
+
+        try:
+            rq_dict["triggervetoreadouttime"].append(trigv[det]["TriggerVetoReadoutTime0"])
+        except:
+            rq_dict["triggervetoreadouttime"].append(-999999.0)
+
+        try:
+            rq_dict["seriestime"].append(trigv[det]["SeriesTime"])
+        except:
+            rq_dict["seriestime"].append(-999999.0)
+
+        try:
+            rq_dict["waveformreadendtime"].append(trigv[det]["WaveformReadEndTime"])
+        except:
+            rq_dict["waveformreadendtime"].append(-999999.0)
+
+        try:
+            rq_dict["waveformreadstarttime"].append(trigv[det]["WaveformReadStartTime"])
+        except:
+            rq_dict["waveformreadstarttime"].append(-999999.0)
     
     traces = events[det]['p']*convtoamps_arr
     
-    return traces, np.array(eventnumber), np.array(eventtime), np.array(triggertype), np.array(triggeramp)
+    return traces, rq_dict
 
 def pulse_func(x, tau_r, tau_f):
     return np.exp(-x/tau_f)-np.exp(-x/tau_r)
@@ -467,15 +511,16 @@ def process_RQ_crosstalk(file, params):
         qetbias[ii] = get_trace_gain(os.path.dirname(file), ch, det)[-1]
     
     columns = [f'baseline_{chan[0]}', f'baseline_{chan[1]}', f'baseline_{chan[2]}',
-              f'int_bsSub_{chan[0]}',f'int_bsSub_{chan[1]}',f'int_bsSub_{chan[2]}',
-              f'ofAmps_{chan[0]}',f'ofAmps_{chan[1]}',f'ofAmps_{chan[2]}',
-              f'chi2_{chan[0]}',f'chi2_{chan[1]}',f'chi2_{chan[2]}',
-              f't0_{chan[0]}',f't0_{chan[1]}',f't0_{chan[2]}',
-              f'ofAmps_delay_{chan[0]}',f'ofAmps_delay_{chan[1]}',f'ofAmps_delay_{chan[2]}',
-              f'chi2_delay_{chan[0]}',f'chi2_delay_{chan[1]}',f'chi2_delay_{chan[2]}',
-              f't0_delay_{chan[0]}',f't0_delay_{chan[1]}',f't0_delay_{chan[2]}',
-              'eventNumber','eventTime','seriesNumber','triggerType','triggeramp','trigger_chan',
-              f'qetbias_{chan[0]}', f'qetbias_{chan[1]}', f'qetbias_{chan[2]}']
+               f'int_bsSub_{chan[0]}',f'int_bsSub_{chan[1]}',f'int_bsSub_{chan[2]}',
+               f'ofAmps_{chan[0]}',f'ofAmps_{chan[1]}',f'ofAmps_{chan[2]}',
+               f'chi2_{chan[0]}',f'chi2_{chan[1]}',f'chi2_{chan[2]}',
+               f't0_{chan[0]}',f't0_{chan[1]}',f't0_{chan[2]}',
+               f'ofAmps_delay_{chan[0]}',f'ofAmps_delay_{chan[1]}',f'ofAmps_delay_{chan[2]}',
+               f'chi2_delay_{chan[0]}',f'chi2_delay_{chan[1]}',f'chi2_delay_{chan[2]}',
+               f't0_delay_{chan[0]}',f't0_delay_{chan[1]}',f't0_delay_{chan[2]}',
+               'eventNumber','eventTime','seriesNumber','triggerType','triggeramp','trigger_chan',
+               f'qetbias_{chan[0]}', f'qetbias_{chan[1]}', f'qetbias_{chan[2]}']
+    
     
     if len(template) > 3:
         columns.extend(['ofAmps_PD2_T5Z2', 'chi2_PD2_T5Z2','t0_PD2_T5Z2'])
@@ -618,6 +663,218 @@ def process_RQ_crosstalk(file, params):
     return df_temp
 
 
+def process_RQ_DMsearch(file, params):
+    chan, det, convtoamps, template, psds, fs, time, indbasepre, indbasepost = params
+    
+    traces, rq_dict = get_traces_per_dump([file], chan=chan, det=det, convtoamps=convtoamps)
+    
+    columns = [f'baseline_{chan[0]}', f'baseline_{chan[1]}', f'baseline_{chan[2]}',
+               f'int_bsSub_{chan[0]}', f'int_bsSub_{chan[1]}', f'int_bsSub_{chan[2]}',
+               f'ofAmps_nodelay_{chan[0]}', f'ofAmps_nodelay_{chan[1]}', f'ofAmps_nodelay_{chan[2]}',
+               f'chi2_nodelay_{chan[0]}', f'chi2_nodelay_{chan[1]}', f'chi2_nodelay_{chan[2]}',
+               f'ofAmps_delay_{chan[0]}', f'ofAmps_delay_{chan[1]}', f'ofAmps_delay_{chan[2]}',
+               f'chi2_delay_{chan[0]}', f'chi2_delay_{chan[1]}', f'chi2_delay_{chan[2]}',
+               f't0_delay_{chan[0]}', f't0_delay_{chan[1]}', f't0_delay_{chan[2]}',
+               f'ofAmps_uncon_{chan[0]}', f'ofAmps_uncon_{chan[1]}', f'ofAmps_uncon_{chan[2]}',
+               f'chi2_uncon_{chan[0]}', f'chi2_uncon_{chan[1]}', f'chi2_uncon_{chan[2]}',
+               f't0_uncon_{chan[0]}', f't0_uncon_{chan[1]}', f't0_uncon_{chan[2]}',
+               f'ofAmps_pileup_{chan[0]}', f'ofAmps_pileup_{chan[1]}', f'ofAmps_pileup_{chan[2]}',
+               f'chi2_pileup_{chan[0]}', f'chi2_pileup_{chan[1]}', f'chi2_pileup_{chan[2]}',
+               f't0_pileup_{chan[0]}', f't0_pileup_{chan[1]}', f't0_pileup_{chan[2]}',
+               'chi2_lowfreq', 'eventNumber', 'eventTime', 'seriesNumber', 'triggerType', 
+               'triggerAmp',"readoutStatus", "pollingEndTime", "triggerTime", "deadTime", "liveTime", 
+               "seriesTime", "triggerVetoReadoutTime", "waveformReadEndTime", "waveformReadStartTime"]
+    
+    temp_data = {}
+    for item in columns:
+        temp_data[item] = []
+    dump = file.split('/')[-1].split('_')[-1].split('.')[0]
+    seriesnum = file.split('/')[-2]
+    print(f"On Series: {seriesnum},  dump: {dump}")
+    
+    psd1 = psds[0]
+    psd2 = psds[1]
+    psd3 = psds[2]
+    
+    template1 = template[0]
+    template2 = template[1]
+    template3 = template[2]
+    
+    for ii, trace_full in enumerate(traces):
+        
+        temp_data['eventNumber'].append(rq_dict["eventnumber"][ii])
+        temp_data['eventTime'].append(rq_dict["eventtime"][ii])
+        temp_data['seriesNumber'].append(rq_dict["seriesnumber"][ii])
+        temp_data['triggerType'].append(rq_dict["triggertype"][ii])
+        temp_data['triggerAmp'].append(rq_dict["triggeramp"][ii])
+        temp_data['readoutStatus'].append(rq_dict["triggeramp"][ii])
+        temp_data['pollingEndTime'].append(rq_dict["triggeramp"][ii])
+        temp_data['triggerTime'].append(rq_dict["triggeramp"][ii])
+        temp_data['deadTime'].append(rq_dict["triggeramp"][ii])
+        temp_data['liveTime'].append(rq_dict["triggeramp"][ii])
+        temp_data['seriesTime'].append(rq_dict["triggeramp"][ii])
+        temp_data['triggerVetoReadoutTime'].append(rq_dict["triggeramp"][ii])
+        temp_data['waveformReadEndTime'].append(rq_dict["triggeramp"][ii])
+        temp_data['waveformReadStartTime'].append(rq_dict["triggeramp"][ii])
+        
+        if temp_data['readoutStatus'] == 1:
+        
+            trace1 = trace_full[0]
+            trace2 = trace_full[1]
+            trace3 = trace_full[2]
+
+            baseline1 = np.mean(np.hstack((trace1[:indbasepre], trace1[indbasepost:])))
+            baseline2 = np.mean(np.hstack((trace2[:indbasepre], trace2[indbasepost:])))
+            baseline3 = np.mean(np.hstack((trace3[:indbasepre], trace3[indbasepost:])))
+
+            trace_bsSub1 = trace1 - baseline1
+            trace_bsSub2 = trace2 - baseline2
+            trace_bsSub3 = trace3 - baseline3
+
+            amp1_delay, t01_delay, chi21_delay = ofamp(trace1, template1, psd1, fs, nconstrain=80)
+            amp2_delay, t02_delay, chi22_delay = ofamp(trace2, template2, psd2, fs, nconstrain=80)
+            amp3_delay, t03_delay, chi23_delay = ofamp(trace3, template3, psd3, fs, nconstrain=80)
+
+            template2_rolled = np.roll(template2, int(t01_delay*fs))
+            template3_rolled = np.roll(template3, int(t01_delay*fs))
+
+            amp2_rolled, _, chi22_rolled = ofamp(trace2, template2_rolled, psd2, fs, withdelay=False)
+            amp3_rolled, _, chi23_rolled = ofamp(trace3, template3_rolled, psd3, fs, withdelay=False)
+
+            amp1_nodelay, _, chi21_nodelay = ofamp(trace1, template1, psd1, fs, withdelay=False)
+            amp2_nodelay, _, chi22_nodelay = ofamp(trace2, template2, psd2, fs, withdelay=False)
+            amp3_nodelay, _, chi23_nodelay = ofamp(trace3, template3, psd3, fs, withdelay=False)
+
+            amp1_uncon, t01_uncon, chi21_uncon = ofamp(trace1, template1, psd1, fs)
+            amp2_uncon, t02_uncon, chi22_uncon = ofamp(trace2, template2, psd2, fs)
+            amp3_uncon, t03_uncon, chi23_uncon = ofamp(trace3, template3, psd3, fs)
+
+            _, _, amp1_pileup, t01_pileup, chi21_pileup = ofamp_pileup(trace1, template1, psd1, fs, 
+                                                                       a1=amp1_delay, t1=t01_delay, 
+                                                                       nconstrain2=80)
+            _, _, amp2_pileup, t02_pileup, chi22_pileup = ofamp_pileup(trace2, template2, psd2, fs, 
+                                                                       a1=amp2_uncon, t1=t02_uncon, 
+                                                                       nconstrain2=1000)
+            _, _, amp3_pileup, t03_pileup, chi23_pileup = ofamp_pileup(trace3, template3, psd3, fs, 
+                                                                       a1=amp3_uncon, t1=t03_uncon, 
+                                                                       nconstrain2=1000)
+
+            chi2_10000 = chi2lowfreq(trace1, template1, amp1_delay, t01_delay, psd1, fs, fcutoff=10000)
+
+            temp_data[f'baseline_{chan[0]}'].append(baseline1)
+            temp_data[f'baseline_{chan[1]}'].append(baseline2)
+            temp_data[f'baseline_{chan[2]}'].append(baseline3)
+
+            temp_data[f'int_bsSub_{chan[0]}'].append(np.trapz(trace_bsSub1, time))
+            temp_data[f'int_bsSub_{chan[1]}'].append(np.trapz(trace_bsSub2, time))
+            temp_data[f'int_bsSub_{chan[2]}'].append(np.trapz(trace_bsSub3, time))
+
+            temp_data[f'ofAmps_nodelay_{chan[0]}'].append(amp1_nodelay)
+            temp_data[f'ofAmps_nodelay_{chan[1]}'].append(amp2_nodelay)
+            temp_data[f'ofAmps_nodelay_{chan[2]}'].append(amp3_nodelay)
+
+            temp_data[f'chi2_nodelay_{chan[0]}'].append(chi21_nodelay)
+            temp_data[f'chi2_nodelay_{chan[1]}'].append(chi22_nodelay)
+            temp_data[f'chi2_nodelay_{chan[2]}'].append(chi23_nodelay)
+
+            temp_data[f'ofAmps_delay_{chan[0]}'].append(amp1_delay)
+            temp_data[f'ofAmps_delay_{chan[1]}'].append(amp2_delay)
+            temp_data[f'ofAmps_delay_{chan[2]}'].append(amp3_delay)
+
+            temp_data[f'chi2_delay_{chan[0]}'].append(chi21_delay)
+            temp_data[f'chi2_delay_{chan[1]}'].append(chi22_delay)
+            temp_data[f'chi2_delay_{chan[2]}'].append(chi23_delay)
+
+            temp_data[f't0_delay_{chan[0]}'].append(t01_delay)
+            temp_data[f't0_delay_{chan[1]}'].append(t02_delay)
+            temp_data[f't0_delay_{chan[2]}'].append(t03_delay)
+
+            temp_data[f'ofAmps_uncon_{chan[0]}'].append(amp1_uncon)
+            temp_data[f'ofAmps_uncon_{chan[1]}'].append(amp2_uncon)
+            temp_data[f'ofAmps_uncon_{chan[2]}'].append(amp3_uncon)
+
+            temp_data[f'chi2_uncon_{chan[0]}'].append(chi21_uncon)
+            temp_data[f'chi2_uncon_{chan[1]}'].append(chi22_uncon)
+            temp_data[f'chi2_uncon_{chan[2]}'].append(chi23_uncon)
+
+            temp_data[f't0_uncon_{chan[0]}'].append(t01_uncon)
+            temp_data[f't0_uncon_{chan[1]}'].append(t02_uncon)
+            temp_data[f't0_uncon_{chan[2]}'].append(t03_uncon)
+
+            temp_data[f'ofAmps_pileup_{chan[0]}'].append(amp1_pileup)
+            temp_data[f'ofAmps_pileup_{chan[1]}'].append(amp2_pileup)
+            temp_data[f'ofAmps_pileup_{chan[2]}'].append(amp3_pileup)
+
+            temp_data[f'chi2_pileup_{chan[0]}'].append(chi21_pileup)
+            temp_data[f'chi2_pileup_{chan[1]}'].append(chi22_pileup)
+            temp_data[f'chi2_pileup_{chan[2]}'].append(chi23_pileup)
+
+            temp_data[f't0_pileup_{chan[0]}'].append(t01_pileup)
+            temp_data[f't0_pileup_{chan[1]}'].append(t02_pileup)
+            temp_data[f't0_pileup_{chan[2]}'].append(t03_pileup)
+
+            temp_data['chi2_lowfreq'].append(chi2_10000)
+        
+        else:
+            
+            temp_data[f'baseline_{chan[0]}'].append(-999999.0)
+            temp_data[f'baseline_{chan[1]}'].append(-999999.0)
+            temp_data[f'baseline_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'int_bsSub_{chan[0]}'].append(-999999.0)
+            temp_data[f'int_bsSub_{chan[1]}'].append(-999999.0)
+            temp_data[f'int_bsSub_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'ofAmps_nodelay_{chan[0]}'].append(-999999.0)
+            temp_data[f'ofAmps_nodelay_{chan[1]}'].append(-999999.0)
+            temp_data[f'ofAmps_nodelay_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'chi2_nodelay_{chan[0]}'].append(-999999.0)
+            temp_data[f'chi2_nodelay_{chan[1]}'].append(-999999.0)
+            temp_data[f'chi2_nodelay_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'ofAmps_delay_{chan[0]}'].append(-999999.0)
+            temp_data[f'ofAmps_delay_{chan[1]}'].append(-999999.0)
+            temp_data[f'ofAmps_delay_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'chi2_delay_{chan[0]}'].append(-999999.0)
+            temp_data[f'chi2_delay_{chan[1]}'].append(-999999.0)
+            temp_data[f'chi2_delay_{chan[2]}'].append(-999999.0)
+
+            temp_data[f't0_delay_{chan[0]}'].append(-999999.0)
+            temp_data[f't0_delay_{chan[1]}'].append(-999999.0)
+            temp_data[f't0_delay_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'ofAmps_uncon_{chan[0]}'].append(-999999.0)
+            temp_data[f'ofAmps_uncon_{chan[1]}'].append(-999999.0)
+            temp_data[f'ofAmps_uncon_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'chi2_uncon_{chan[0]}'].append(-999999.0)
+            temp_data[f'chi2_uncon_{chan[1]}'].append(-999999.0)
+            temp_data[f'chi2_uncon_{chan[2]}'].append(-999999.0)
+
+            temp_data[f't0_uncon_{chan[0]}'].append(-999999.0)
+            temp_data[f't0_uncon_{chan[1]}'].append(-999999.0)
+            temp_data[f't0_uncon_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'ofAmps_pileup_{chan[0]}'].append(-999999.0)
+            temp_data[f'ofAmps_pileup_{chan[1]}'].append(-999999.0)
+            temp_data[f'ofAmps_pileup_{chan[2]}'].append(-999999.0)
+
+            temp_data[f'chi2_pileup_{chan[0]}'].append(-999999.0)
+            temp_data[f'chi2_pileup_{chan[1]}'].append(-999999.0)
+            temp_data[f'chi2_pileup_{chan[2]}'].append(-999999.0)
+
+            temp_data[f't0_pileup_{chan[0]}'].append(-999999.0)
+            temp_data[f't0_pileup_{chan[1]}'].append(-999999.0)
+            temp_data[f't0_pileup_{chan[2]}'].append(-999999.0)
+
+            temp_data['chi2_lowfreq'].append(-999999.0)
+            
+    df_temp = pd.DataFrame.from_dict(temp_data)
+    return df_temp
+
+
 
 def multiprocess_RQ_crosstalk(filelist, chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger):
     
@@ -634,15 +891,15 @@ def multiprocess_RQ_crosstalk(filelist, chan, det, convtoamps, template, psds, f
 
 
 
-def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload,lgciZip, lgcHV):
+def multiprocess_RQ_DM(filelist, chan, det, convtoamps, template, psds, fs, time, indbasepre, indbasepost):
     
     path = filelist[0]
     pathgain = path.split('.')[0][:-19]
 
     nprocess = int(1)
     pool = multiprocessing.Pool(processes = nprocess)
-    results = pool.starmap(process_RQ_DMsearch, zip(filelist, repeat([chan, det, convtoamps, template, psds, \
-                                        fs ,time, ioffset, indbasepre, indbasepost, qetbias, rload,lgciZip, lgcHV ])))
+    results = pool.starmap(process_RQ_DMsearch, zip(filelist, repeat([chan, det, convtoamps, template, psds, 
+                                                    fs, time, indbasepre, indbasepost])))
     pool.close()
     pool.join()
     RQ_df = pd.concat([df for df in results], ignore_index = True)  
