@@ -209,7 +209,7 @@ def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4
     
     return convtoamps, drivergain, qetbias
 
-def get_traces_per_dump(path, chan, det, convtoamps = 1):
+def get_traces_per_dump(path, chan, det, convtoamps = 1, lgcskip_empty = False):
     """
     Function to return raw traces and event information for a single channel
     
@@ -250,7 +250,7 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1):
     convtoamps_arr = np.array(convtoamps)
     convtoamps_arr = convtoamps_arr[np.newaxis,:,np.newaxis]
     
-    events = getRawEvents(filepath='',files_series = path, channelList=chan, skipEmptyEvents=False, outputFormat=3)
+    events = getRawEvents(filepath='',files_series = path, channelList=chan, skipEmptyEvents=lgcskip_empty, outputFormat=3)
     
     columns = ["eventnumber", "seriesnumber", "eventtime", "triggertype", "readoutstatus", "pollingendtime", 
                "triggertime", "deadtime", "livetime", "seriestime", "triggervetoreadouttime",
