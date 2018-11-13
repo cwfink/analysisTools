@@ -172,7 +172,7 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     
     return t, x, crand
 
-def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4, 'adcpervolt' : 2**(16)/2}):
+def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4, 'adcpervolt' : 2**(16)/2}, verbose=False):
     """
     
     calculates the conversion from ADC bins to TES current. To convert traces from ADC bins to current: traces[ADC]*convtoamps
@@ -189,6 +189,9 @@ def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4
             'rfb': feedback resistor
             'loopgain':gain of loop of the feeback amp
             'adcpervolt': the bitdepth divided by the voltage range of the adc
+    verbose : bool, optional
+        Boolean flag for if the current path and series should be printed. False by default.
+    
     Returns
     -------
     convtoamps: float
@@ -200,8 +203,9 @@ def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4
     """
     
     series = path.split('/')[-1]
-    print(path)
-    print(series)
+    if verbose:
+        print(path)
+        print(series)
     settings = getDetectorSettings(path, series)
     qetbias = settings[det][chan]['qetBias']
     drivergain = settings[det][chan]['driverGain']*2
@@ -503,7 +507,12 @@ def process_RQ(file, params):
 def process_RQ_crosstalk(file, params):
     chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger = params
     
-    traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
+    traces, rq_dict = get_traces_per_dump([file], chan=chan, det=det, convtoamps=convtoamps, lgcskip_empty=True)
+    
+    eventNumber = rq_dict["eventnumber"]
+    eventTime = rq_dict["eventtime"]
+    triggertype = rq_dict["triggertype"]
+    triggeramp = rq_dict["triggeramp"]
     
     qetbias = np.zeros(len(chan))
     
