@@ -6,8 +6,8 @@ sys.path.append('/scratch/cwfink/repositories/scdmsPyTools/build/lib/scdmsPyTool
 from scdmsPyTools.BatTools.IO import *
 import multiprocessing
 from itertools import repeat
-from qetpy.fitting import ofamp, OFnonlin, MuonTailFit, chi2lowfreq, ofamp_pileup
-from qetpy.utils import calc_psd, calc_offset, lowpassfilter, removeoutliers
+from qetpy.detcal import ofamp, OFnonlin, MuonTailFit, chi2lowfreq, ofamp_pileup
+from qetpy.detcal import calc_psd, calc_offset, lowpassfilter#, removeoutliers
 import matplotlib.pyplot as plt
 
 from scipy.optimize import leastsq, curve_fit
@@ -172,7 +172,7 @@ def getrandevents(basepath, evtnums, seriesnums, cut=None, channels=["PDS1"], co
     
     return t, x, crand
 
-def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4, 'adcpervolt' : 2**(16)/2}, verbose=False):
+def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4, 'adcpervolt' : 2**(16)/2}):
     """
     
     calculates the conversion from ADC bins to TES current. To convert traces from ADC bins to current: traces[ADC]*convtoamps
@@ -189,9 +189,6 @@ def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4
             'rfb': feedback resistor
             'loopgain':gain of loop of the feeback amp
             'adcpervolt': the bitdepth divided by the voltage range of the adc
-    verbose : bool, optional
-        Boolean flag for if the current path and series should be printed. False by default.
-    
     Returns
     -------
     convtoamps: float
@@ -203,9 +200,8 @@ def get_trace_gain(path, chan, det, gainfactors = {'rfb': 5000, 'loopgain' : 2.4
     """
     
     series = path.split('/')[-1]
-    if verbose:
-        print(path)
-        print(series)
+    #print(path)
+    #print(series)
     settings = getDetectorSettings(path, series)
     qetbias = settings[det][chan]['qetBias']
     drivergain = settings[det][chan]['driverGain']*2
@@ -313,15 +309,60 @@ def get_traces_per_dump(path, chan, det, convtoamps = 1, lgcskip_empty = False):
     
     return traces, rq_dict
 
-def pulse_func(x, tau_r, tau_f):
-    return np.exp(-x/tau_f)-np.exp(-x/tau_r)
+def pulse_func(time, tau_r, tau_f):
+    """
+    Simple function to make an ideal pulse shape in time domain 
+    with a single pole rise and a signle pole fall
+    
+    Prameters
+    ---------
+    time: array
+        Array of time values to make the pulse with
+    tau_r: float
+        The time constant for the exponential rise of the pulse
+    tau_f: float
+        The time constant for the exponential fall of the pulse
+        
+    Returns
+    -------
+    pulse: array
+        The pulse magnitude as a function of time. Note, the normalization is
+        arbitrary. 
+        
+    """
+    
+    pulse = np.exp(-time/tau_f)-np.exp(-time/tau_r)
+    return pulse 
 
-def make_template(x, tau_r, tau_f, offset):
+def make_ideal_template(x, tau_r, tau_f, offset):
+    """
+    Function to make ideal pulse template in time domain with single pole exponential rise
+    and fall times and a given time offset. The template will be returned with maximum
+    pulse hight normalized to one. 
+    
+    Parameters
+    ----------
+    time: array
+        Array of time values to make the pulse with
+    tau_r: float
+        The time constant for the exponential rise of the pulse
+    tau_f: float
+        The time constant for the exponential fall of the pulse
+    offset: int
+        The number of bins the pulse template should be shifted
+        
+    Returns
+    -------
+    template_normed: array
+        the pulse template in time domain
+        
+    """
+    
     pulse = pulse_func(x, tau_r,tau_f)
     pulse_shifted = np.roll(pulse, offset)
-    pulse_norm = pulse_shifted/pulse_shifted.max()
-    print(offset)
-    return pulse_norm
+    pulse_shifted[:offset] = 0
+    template_normed = pulse_shifted/pulse_shifted.max()
+    return template_normed
 
 
 
@@ -507,12 +548,7 @@ def process_RQ(file, params):
 def process_RQ_crosstalk(file, params):
     chan, det, convtoamps, template, psds, fs ,time, indbasepre, indbasepost, trigger = params
     
-    traces, rq_dict = get_traces_per_dump([file], chan=chan, det=det, convtoamps=convtoamps, lgcskip_empty=True)
-    
-    eventNumber = rq_dict["eventnumber"]
-    eventTime = rq_dict["eventtime"]
-    triggertype = rq_dict["triggertype"]
-    triggeramp = rq_dict["triggeramp"]
+    traces , eventNumber, eventTime,triggertype,triggeramp = get_traces_per_dump([file], chan = chan, det = det, convtoamps = convtoamps)
     
     qetbias = np.zeros(len(chan))
     
