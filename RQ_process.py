@@ -6,8 +6,8 @@ sys.path.append('/scratch/cwfink/repositories/scdmsPyTools/build/lib/scdmsPyTool
 from scdmsPyTools.BatTools.IO import *
 import multiprocessing
 from itertools import repeat
-from qetpy.detcal import ofamp, OFnonlin, MuonTailFit, chi2lowfreq, ofamp_pileup
-from qetpy.detcal import calc_psd, calc_offset, lowpassfilter#, removeoutliers
+from qetpy.core import calc_psd, ofamp, OFnonlin, MuonTailFit, chi2lowfreq, ofamp_pileup
+from qetpy.utils import  calc_offset, lowpassfilter#, removeoutliers
 import matplotlib.pyplot as plt
 
 from scipy.optimize import leastsq, curve_fit
@@ -1803,12 +1803,12 @@ def correct_integral(xenergies, ypeaks, errors, DF, p0 = (3.87396482e+03, 2.1465
     x_fit = np.linspace(0, xenergies[-1], 100)
     y_fit = saturation_func(x_fit, *popt)
 
-
+    
     plt.figure(figsize=(12,8))
     plt.grid(True, linestyle = 'dashed')
     plt.scatter(x,y, marker = 'X', label = 'Spectral Peaks' , s = 100, zorder = 100)
     plt.errorbar(x,y, yerr=yerr, linestyle = ' ')
-    plt.plot(x_fit, y_fit, label = r'$y = a[1-exp(x/b)]$')
+    plt.plot(x_fit, y_fit, label = r'$y = a[1-exp(-x/b)]$')
     plt.plot(x_fit,x_fit*ypeaks[0]/xenergies[0],linestyle = '--', c= 'g', label = 'linear calibration from Al fluorescence')
     plt.plot(x_fit,x_fit*ypeaks[-2]/xenergies[-2],linestyle = '--', c = 'r', label = 'linear calibration from Kα')
     plt.fill_between(x_fit, x_fit*(ypeaks[0]-2*errors[0])/xenergies[0], x_fit*(ypeaks[0]+2*errors[0])/xenergies[0] 
